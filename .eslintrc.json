@@ -1,0 +1,18 @@
+{
+	"parser": "@typescript-eslint/parser",
+	"plugins": ["@typescript-eslint"],
+	"parserOptions": { "project": ["./tsconfig.json"] },
+	"extends": [
+		"plugin:@typescript-eslint/recommended",
+		"plugin:@typescript-eslint/eslint-recommended",
+		"plugin:prettier/recommended",
+		"plugin:playwright/playwright-test",
+		"prettier"
+	],
+	"rules": {
+		"no-var": ["error"],
+		"@typescript-eslint/no-floating-promises": "error",
+		"semi": ["error", "always"],
+		"playwright/expect-expect": ["off"]
+	}
+}
