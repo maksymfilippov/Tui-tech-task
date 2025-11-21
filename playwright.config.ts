@@ -28,10 +28,6 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'setup',
-      testMatch: '**/setup/auth.ts',
-    },
-    {
       name: 'e2e | ui',
       testMatch: '**/ui/*.spec.ts',
       timeout: 180000,
@@ -49,12 +45,6 @@ export default defineConfig({
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
       },
-      fullyParallel: true,
-      dependencies: ['setup'],
-    },
-    {
-      name: 'e2e | api',
-      testMatch: '**/api/*.spec.ts',
       fullyParallel: true,
     },
   ],
