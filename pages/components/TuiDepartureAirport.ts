@@ -1,16 +1,16 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { Fragment } from '@/pages/fragments/Fragment';
+import { Component } from '@/pages/core';
 import { pickRandom } from '@/pages/utils/random';
 
 const selectors = {
-  rootPanel: '.UI__choiceSearchPanel',
+  root: '.UI__choiceSearchPanel',
   departureInput:
     '.UI__choiceSearchPanel input[name="Departure Airport"], input.SelectAirports__pointer',
   airportsContainer: '.SelectAirports__droplistContainer',
   airportCheckboxes: '.SelectAirports__droplistContainer [role="checkbox"]',
 } as const;
 
-export class TuiDepartureAirport extends Fragment<typeof selectors> {
+export class TuiDepartureAirport extends Component<typeof selectors> {
   constructor(page: Page) {
     super(selectors, page);
   }
@@ -53,7 +53,9 @@ export class TuiDepartureAirport extends Fragment<typeof selectors> {
     await expect(container).toBeVisible();
 
     const allAirports = await container
-      .locator('li, [role="checkbox"], [role="option"], [data-test-id*="airport"], .SelectAirports__airportListItem')
+      .locator(
+        'li, [role="checkbox"], [role="option"], [data-test-id*="airport"], .SelectAirports__airportListItem'
+      )
       .all();
 
     for (const airport of allAirports) {

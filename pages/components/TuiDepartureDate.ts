@@ -1,11 +1,11 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { Fragment } from '@/pages/fragments/Fragment';
+import { Component } from '@/pages/core';
 
 const selectors = {
+  root: '.DropModal__dropModalContent.dropModalScope_Departuredate',
   departureDateInput: '[data-test-id="departure-date-input"]',
   modalContent: '.DropModal__dropModalContent.dropModalScope_Departuredate',
-  monthSelector:
-    '.dropModalScope_Departuredate .SelectLegacyDate__monthSelector',
+  monthSelector: '.dropModalScope_Departuredate .SelectLegacyDate__monthSelector',
   toleranceArea: '.SelectLegacyDate__flexibilityOnly',
   calendarRoot: '.SelectLegacyDate__calendar',
   availableDay: 'td.SelectLegacyDate__available',
@@ -22,7 +22,7 @@ function pickRandom<T>(items: T[]): T {
   return items[index];
 }
 
-export class TuiDepartureDate extends Fragment<typeof selectors> {
+export class TuiDepartureDate extends Component<typeof selectors> {
   constructor(page: Page) {
     super(selectors, page);
   }
@@ -117,7 +117,7 @@ export class TuiDepartureDate extends Fragment<typeof selectors> {
     let calendar: Locator | null = null;
     for (const root of calendarCandidates) {
       const loc = this.page.locator(root).first();
-      if (await loc.count() && (await loc.isVisible().catch(() => false))) {
+      if ((await loc.count()) && (await loc.isVisible().catch(() => false))) {
         calendar = loc;
         break;
       }
@@ -148,8 +148,7 @@ export class TuiDepartureDate extends Fragment<typeof selectors> {
           .filter({ hasText: /^\s*\d{1,2}\s*$/ })
           .all();
         if (numeric.length) availableCells = numeric as Locator[];
-      } catch {
-      }
+      } catch {}
     }
 
     if (!availableCells.length) {

@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { BasePage } from '@/pages/utils/BasePage';
+import { BasePage } from '@/pages/core';
 
 const selectors = {
   hotelTitle: 'h1',
@@ -20,7 +20,12 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
       await this.hideOverlays().catch(() => {});
       await this.page.waitForLoadState('domcontentloaded');
 
-      const candidates = [selectors.heroBanner, selectors.progressBar, selectors.overview, selectors.hotelTitle];
+      const candidates = [
+        selectors.heroBanner,
+        selectors.progressBar,
+        selectors.overview,
+        selectors.hotelTitle,
+      ];
 
       await this.page.waitForFunction(
         (sels: string[]) => sels.some(s => !!document.querySelector(s)),
@@ -32,14 +37,20 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
         try {
           await this.page.waitForSelector(sel, { timeout: 5_000, state: 'visible' });
           return;
-        } catch (err) {
-        }
+        } catch (err) {}
       }
 
       await this.page.waitForTimeout(1500);
     } catch (err: any) {
-      if (String(err).includes('Target page') || String(err).includes('has been closed') || String(err).includes('Page closed')) {
-        throw new Error('Hotel details page was closed or a popup was used. Ensure the hotel link opens a page Playwright can attach to. Original: ' + String(err));
+      if (
+        String(err).includes('Target page') ||
+        String(err).includes('has been closed') ||
+        String(err).includes('Page closed')
+      ) {
+        throw new Error(
+          'Hotel details page was closed or a popup was used. Ensure the hotel link opens a page Playwright can attach to. Original: ' +
+            String(err)
+        );
       }
       throw err;
     }
@@ -55,7 +66,12 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
   async continueToFlights(): Promise<void> {
     await this.waitUntilLoaded();
 
-    const candidateSelectors = [this.$.continueButton, 'button:has-text("Continue")', 'button:has-text("Ga verder")', '.ProgressbarNavigation__summaryButton button'];
+    const candidateSelectors = [
+      this.$.continueButton,
+      'button:has-text("Continue")',
+      'button:has-text("Ga verder")',
+      '.ProgressbarNavigation__summaryButton button',
+    ];
 
     for (const sel of candidateSelectors) {
       try {
@@ -63,17 +79,21 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
         await expect(locator).toBeVisible({ timeout: 5_000 });
         await locator.click().catch(async () => {
           await locator.click({ force: true }).catch(async () => {
-            await this.page.evaluate((s: string) => {
-              const el = document.querySelector(s) as HTMLElement | null;
-              if (el) el.click();
-            }, sel).catch(() => {});
+            await this.page
+              .evaluate((s: string) => {
+                const el = document.querySelector(s) as HTMLElement | null;
+                if (el) el.click();
+              }, sel)
+              .catch(() => {});
           });
         });
         return;
-      } catch (err) {
-      }
+      } catch (err) {}
     }
 
-    throw new Error('Could not find or click Continue button on hotel details page. Tried selectors: ' + candidateSelectors.join(', '));
+    throw new Error(
+      'Could not find or click Continue button on hotel details page. Tried selectors: ' +
+        candidateSelectors.join(', ')
+    );
   }
 }

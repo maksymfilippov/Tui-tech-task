@@ -1,4 +1,4 @@
-export * from './utils/BasePage';
+export * from './core/BasePage';
 export * from './tui/TuiHomePage';
 export * from './tui/TuiSearchResultsPage';
 export * from './tui/TuiHotelDetailsPage';

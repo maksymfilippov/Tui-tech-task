@@ -1,8 +1,9 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { Fragment } from '@/pages/fragments/Fragment';
+import { Component } from '@/pages/core';
 import { getRandomInt } from '@/pages/utils/random';
 
 const selectors = {
+  root: '.dropModalScope_roomandguest',
   dropdownInput: '[data-test-id="rooms-and-guest-input"]',
   dropdownContent: '.dropModalScope_roomandguest',
   adultsSelector: '.AdultSelector__adultSelector select',
@@ -16,7 +17,7 @@ interface GuestConfiguration {
   childrenAges?: number[];
 }
 
-export class TuiRoomsAndGuests extends Fragment<typeof selectors> {
+export class TuiRoomsAndGuests extends Component<typeof selectors> {
   constructor(page: Page) {
     super(selectors, page);
   }
@@ -56,17 +57,17 @@ export class TuiRoomsAndGuests extends Fragment<typeof selectors> {
   async selectTravelers(adultsCount: number, childrenAges?: number[]): Promise<void> {
     await this.openTravelersDropdown();
     await this.selectAdultsCount(adultsCount);
-    
+
     if (childrenAges && childrenAges.length > 0) {
       await this.selectChildrenCount(childrenAges);
     }
-    
+
     await this.closeDropdown();
   }
 
   async setTwoAdultsWithRandomChild(): Promise<number> {
     const randomAge = getRandomInt(2, 15);
-    
+
     await this.openTravelersDropdown();
     await this.selectAdultsCount(2);
     await this.selectChildrenCount([randomAge]);

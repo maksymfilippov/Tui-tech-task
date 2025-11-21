@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { BasePage } from '@/pages/utils/BasePage';
+import { BasePage } from '@/pages/core';
 import {
   TuiDepartureAirport,
   TuiDestinationAirport,
@@ -15,8 +15,7 @@ const selectors = {
   roomsGuestsButton:
     '[aria-label="room and guest"], [aria-label*="Reiziger"], button:has-text("Reiziger"), button:has-text("Reizigers")',
 
-  searchButton:
-    'button:has-text("ZOEKEN"), button:has-text("Zoeken"), button:has-text("Search")',
+  searchButton: 'button:has-text("ZOEKEN"), button:has-text("Zoeken"), button:has-text("Search")',
 } as const;
 
 export class TuiHomePage extends BasePage<typeof selectors> {
@@ -37,8 +36,8 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   async open(): Promise<void> {
     await this.page.goto('/h/nl', { waitUntil: 'domcontentloaded' });
 
-  await this.acceptCookiesIfPresent();
-  await this.hideOverlays();
+    await this.acceptCookiesIfPresent();
+    await this.hideOverlays();
 
     console.log('[TUI] Homepage opened & prepared');
   }
@@ -60,12 +59,11 @@ export class TuiHomePage extends BasePage<typeof selectors> {
         await banner.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
         console.log('Cookies banner accepted');
       }
-    } catch {
-    }
+    } catch {}
   }
 
   async ensureReady(): Promise<void> {
-  await this.acceptCookiesIfPresent();
+    await this.acceptCookiesIfPresent();
   }
 
   async selectRandomDepartureAirportNL(): Promise<string> {
@@ -104,7 +102,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
     let clicked = false;
     for (const sel of candidateSelectors) {
       const loc = this.page.locator(sel).first();
-      if (await loc.count() && (await loc.isVisible().catch(() => false))) {
+      if ((await loc.count()) && (await loc.isVisible().catch(() => false))) {
         await loc.click().catch(() => {});
         clicked = true;
         break;
@@ -122,42 +120,52 @@ export class TuiHomePage extends BasePage<typeof selectors> {
 
     let modalRoot = region;
     const candidateModal = this.page
-      .locator('.DropModal__dropModalContent, .dropModalScope_roomandguest, .DropModal__contentAlign')
+      .locator(
+        '.DropModal__dropModalContent, .dropModalScope_roomandguest, .DropModal__contentAlign'
+      )
       .filter({ hasText: /Volwassenen|Adults|Reiziger|Reizigers/i })
       .first();
     if ((await candidateModal.count()) && (await candidateModal.isVisible().catch(() => false))) {
       modalRoot = candidateModal;
     }
 
-    let adultsRow = modalRoot.locator('div, li').filter({ hasText: /Volwassenen|Adults|Adulten|Volwassen/i }).first();
+    let adultsRow = modalRoot
+      .locator('div, li')
+      .filter({ hasText: /Volwassenen|Adults|Adulten|Volwassen/i })
+      .first();
     if ((await adultsRow.count()) === 0) {
-      adultsRow = modalRoot.locator('div, li').filter({ hasText: /Volwassenen|Adults|Adulten|Volwassen/i }).first();
+      adultsRow = modalRoot
+        .locator('div, li')
+        .filter({ hasText: /Volwassenen|Adults|Adulten|Volwassen/i })
+        .first();
     }
     if ((await adultsRow.count()) === 0) {
-      adultsRow = modalRoot.locator('div, li').filter({ has: modalRoot.getByRole('button') }).first();
+      adultsRow = modalRoot
+        .locator('div, li')
+        .filter({ has: modalRoot.getByRole('button') })
+        .first();
     }
 
     const adultsRowTextRaw = (await adultsRow.textContent().catch(() => '')) || '';
     const adultsRowText = adultsRowTextRaw.replace(/\s+/g, ' ').trim();
-    const foundButtonsCount = await adultsRow.getByRole('button').count().catch(() => 0);
 
     const compact = adultsRowText.replace(/\s+/g, '');
     if (/Volwassenen.*2/i.test(compact) || /Adults.*2/i.test(compact)) {
       return 2;
     }
 
-    const adultsInput = adultsRow.locator('input[type="number"], input[aria-label*="adult"], input[data-test-id*="adults"]').first();
+    const adultsInput = adultsRow
+      .locator('input[type="number"], input[aria-label*="adult"], input[data-test-id*="adults"]')
+      .first();
     if (await adultsInput.count()) {
       try {
         await expect(adultsInput).toBeVisible({ timeout: 2_000 });
         await adultsInput.fill('2');
         const val = await adultsInput.inputValue().catch(() => '');
-        if (val === '2') {
-        } else {
+        if (val !== '2') {
           await this.page.waitForTimeout(200);
         }
-      } catch {
-      }
+      } catch {}
     }
 
     let plusBtn = adultsRow.getByRole('button').filter({ hasText: /\+/ }).first();
@@ -212,7 +220,10 @@ export class TuiHomePage extends BasePage<typeof selectors> {
           if (/\b2\b/.test(rawNow)) success = true;
         }
       } else {
-        const anyTwo = modalRoot.locator('button, a, span, li').filter({ hasText: /\b2\b/ }).first();
+        const anyTwo = modalRoot
+          .locator('button, a, span, li')
+          .filter({ hasText: /\b2\b/ })
+          .first();
         if ((await anyTwo.count()) && (await anyTwo.isVisible().catch(() => false))) {
           await anyTwo.click({ force: true }).catch(() => {});
           const rawNow = (await modalRoot.textContent().catch(() => '')) || '';
@@ -221,8 +232,8 @@ export class TuiHomePage extends BasePage<typeof selectors> {
       }
     }
 
-  let attempts = 0;
-  const maxAttempts = 6;
+    let attempts = 0;
+    const maxAttempts = 6;
     while (attempts < maxAttempts) {
       attempts++;
       await clickWithRetries(plusBtn).catch(() => {});
@@ -233,8 +244,8 @@ export class TuiHomePage extends BasePage<typeof selectors> {
           break;
         }
       }
-  const raw = (await adultsRow.textContent().catch(() => '')) || '';
-  const textNow = raw.replace(/\s+/g, ' ').trim();
+      const raw = (await adultsRow.textContent().catch(() => '')) || '';
+      const textNow = raw.replace(/\s+/g, ' ').trim();
       if (/\b2\b/.test(textNow)) {
         success = true;
         break;
@@ -267,10 +278,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
       .filter({ hasText: /Kinderen/i })
       .first();
 
-    const childrenPlus = childrenRow
-      .getByRole('button')
-      .filter({ hasText: /\+/ })
-      .first();
+    const childrenPlus = childrenRow.getByRole('button').filter({ hasText: /\+/ }).first();
 
     await childrenPlus.click();
 
@@ -284,9 +292,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
       await option.click();
     });
 
-    const saveButton = region
-      .getByRole('button', { name: /Opslaan/i })
-      .first();
+    const saveButton = region.getByRole('button', { name: /Opslaan/i }).first();
 
     await saveButton.click();
     await expect(region).toBeHidden({ timeout: 10_000 });
@@ -307,7 +313,6 @@ export class TuiHomePage extends BasePage<typeof selectors> {
 
     await expect(button).toBeVisible({ timeout: 10_000 });
     await button.click();
-
 
     console.log('[TUI] Search triggered');
   }

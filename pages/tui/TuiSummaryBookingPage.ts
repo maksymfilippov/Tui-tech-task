@@ -1,10 +1,11 @@
 import { Page, expect } from '@playwright/test';
-import { BasePage } from '@/pages/utils/BasePage';
+import { BasePage } from '@/pages/core';
 import { TuiPassengerDetailsPage } from './TuiPassengerDetailsPage';
 
 const selectors = {
   pageHeader: 'h1',
-  continueButton: '.ProgressbarNavigation__summaryButton button, button:has-text("Continue"), button:has-text("Doorgaan"), button:has-text("Verder")',
+  continueButton:
+    '.ProgressbarNavigation__summaryButton button, button:has-text("Continue"), button:has-text("Doorgaan"), button:has-text("Verder")',
 } as const;
 
 export class TuiSummaryBookingPage extends BasePage<typeof selectors> {
@@ -20,7 +21,9 @@ export class TuiSummaryBookingPage extends BasePage<typeof selectors> {
     await this.acceptCookiesIfPresent().catch(() => {});
     await this.hideOverlays().catch(() => {});
 
-    const header = this.page.locator(this.$.pageHeader).filter({ hasText: /Vakantie samenstellen|Booking summary|Samenvatting|Samenvatting boeking/i });
+    const header = this.page.locator(this.$.pageHeader).filter({
+      hasText: /Vakantie samenstellen|Booking summary|Samenvatting|Samenvatting boeking/i,
+    });
     await expect(header.first()).toBeVisible({ timeout: 20_000 });
 
     return this;

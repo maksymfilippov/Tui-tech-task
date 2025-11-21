@@ -19,38 +19,42 @@ export default defineConfig({
   use: {
     actionTimeout: 0,
     headless: true,
-    baseURL: getEnvValue(EnvironmentKey.Url), 
+    baseURL: getEnvValue(EnvironmentKey.Url),
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    locale: 'nl-NL', 
+    locale: 'nl-NL',
   },
 
   projects: [
     {
-      name: `setup`,
-      testMatch: `**/setup/auth.ts`,
+      name: 'setup',
+      testMatch: '**/setup/auth.ts',
     },
     {
-      name: `e2e | ui`,
-      testMatch: `**/ui/*.spec.ts`,
+      name: 'e2e | ui',
+      testMatch: '**/ui/*.spec.ts',
       timeout: 180000,
       expect: { timeout: 10000 },
       use: {
         ...devices['Desktop Chrome'],
-          launchOptions: {
-                    args: ['--start-maximized', '--disable-web-security', '--disable-features=VizDisplayCompositor'],
-                },
+        launchOptions: {
+          args: [
+            '--start-maximized',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+          ],
+        },
         channel: 'chrome',
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
       },
       fullyParallel: true,
-      dependencies: [`setup`],
+      dependencies: ['setup'],
     },
     {
-      name: `e2e | api`,
-      testMatch: `**/api/*.spec.ts`,
+      name: 'e2e | api',
+      testMatch: '**/api/*.spec.ts',
       fullyParallel: true,
     },
   ],

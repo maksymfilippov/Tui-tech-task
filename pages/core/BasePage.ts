@@ -1,18 +1,23 @@
-import { Page } from '@playwright/test';
-import { Component } from '@/pages/components';
+import { test, Page } from '@playwright/test';
+import { Fragment } from '@/pages/core';
+import { NetworkCounter, WaitForIdleOptions } from '@/pages/core/NetworkCounter';
 
-export class BasePage<T> extends Component<T> {
-  public page: Page;
-  public async waitNetworkIdle(options?: any) {
-    return super.waitNetworkIdle(options);
+export class BasePage<T> extends Fragment<T> {
+  private readonly network: NetworkCounter;
+
+  constructor(locators: T, page: Page) {
+    super(locators, page);
+    this.network = new NetworkCounter(page);
   }
 
-	constructor(locators: T, page: Page) {
-		super(locators, page);
-    this.page=page
-	}
+  async waitNetworkIdle(options?: WaitForIdleOptions) {
+    const { elapsed, count } = await this.network.isIdle(options);
+    await test.step(`elapsed: ${elapsed} ms, finished ${count} request(s)`, async () => {
+      await this.page.waitForLoadState('domcontentloaded');
+    });
+  }
 
- async open(url: string) {
+  async open(url: string) {
     await this.page.goto(url);
     await this.page.waitForURL(url);
   }
@@ -46,7 +51,9 @@ export class BasePage<T> extends Component<T> {
           await this.page.waitForTimeout(500);
         }
       }
-      const clickable = banner.locator('div[role="button"], span[role="button"], a[role="button"]').first();
+      const clickable = banner
+        .locator('div[role="button"], span[role="button"], a[role="button"]')
+        .first();
       if (await clickable.isVisible().catch(() => false)) {
         await clickable.click({ force: true }).catch(() => {});
         await this.page.waitForTimeout(500);
@@ -90,7 +97,7 @@ export class BasePage<T> extends Component<T> {
       }
 
       const possibleBackdrops = document.querySelectorAll(
-        '[class*="modal"], [class*="overlay"], [id*="tealium"], [id*="cookie"]',
+        '[class*="modal"], [class*="overlay"], [id*="tealium"], [id*="cookie"]'
       );
       possibleBackdrops.forEach(el => {
         if (el instanceof HTMLElement) {
@@ -105,7 +112,7 @@ export class BasePage<T> extends Component<T> {
     await this.hideOverlays();
   }
 
- async dismissNewsletterPopupIfPresent() {
+  async dismissNewsletterPopupIfPresent() {
     await this.page.waitForTimeout(2000);
 
     const popup = this.page.locator('#opti-crm-popup, .opti-popup');
@@ -132,11 +139,13 @@ export class BasePage<T> extends Component<T> {
     try {
       if (await closeCandidate.first().isVisible({ timeout: 1000 })) {
         await closeCandidate.first().click({ force: true });
-        await popup.first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+        await popup
+          .first()
+          .waitFor({ state: 'hidden', timeout: 5000 })
+          .catch(() => {});
         return;
       }
-    } catch {
-    }
+    } catch {}
 
     await this.page.evaluate(() => {
       const el = document.querySelector('#opti-crm-popup') || document.querySelector('.opti-popup');
@@ -147,4 +156,3 @@ export class BasePage<T> extends Component<T> {
     await this.page.waitForTimeout(200);
   }
 }
-

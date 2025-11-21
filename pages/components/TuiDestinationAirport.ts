@@ -1,8 +1,9 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { Fragment } from '@/pages/fragments/Fragment';
+import { Component } from '@/pages/core';
 import { pickRandom } from '@/pages/utils/random';
 
 const selectors = {
+  root: '.dropModalScope_destinations',
   destinationListToggle: "[data-test-id='destination-input']~span",
   destinationListContainer:
     '.dropModalScope_destinations .DestinationsList__destinationListContainer ul',
@@ -13,7 +14,7 @@ const selectors = {
   cityItems: '.DestinationsList__droplistContainer [aria-checked="false"]',
 } as const;
 
-export class TuiDestinationAirport extends Fragment<typeof selectors> {
+export class TuiDestinationAirport extends Component<typeof selectors> {
   constructor(page: Page) {
     super(selectors, page);
   }
@@ -28,7 +29,7 @@ export class TuiDestinationAirport extends Fragment<typeof selectors> {
       await countryData.locator.click();
       await expect(
         countryData.locator,
-        `Failed to open cities list for country: ${countryData.name}`,
+        `Failed to open cities list for country: ${countryData.name}`
       ).toBeHidden();
 
       const cities = await this.getAllAvailableCities();
@@ -46,7 +47,10 @@ export class TuiDestinationAirport extends Fragment<typeof selectors> {
     return result;
   }
 
-  async setDestination(countryName?: string, cityName?: string): Promise<{
+  async setDestination(
+    countryName?: string,
+    cityName?: string
+  ): Promise<{
     country: string;
     city: string;
   }> {
@@ -96,7 +100,7 @@ export class TuiDestinationAirport extends Fragment<typeof selectors> {
     await selected.locator.click();
     await expect(
       selected.locator,
-      `Failed to select destination country: ${selected.name}`,
+      `Failed to select destination country: ${selected.name}`
     ).toBeHidden();
 
     return selected.name;
@@ -133,7 +137,9 @@ export class TuiDestinationAirport extends Fragment<typeof selectors> {
     await expect(area).toBeVisible({ timeout: 10_000 });
 
     const allItems = await area
-      .locator('li, [role="option"], [aria-checked], a, .DestinationsList__droplistContainer [data-test-id]')
+      .locator(
+        'li, [role="option"], [aria-checked], a, .DestinationsList__droplistContainer [data-test-id]'
+      )
       .all();
 
     const cities: Array<{ locator: Locator; name: string }> = [];

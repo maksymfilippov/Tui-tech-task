@@ -1,218 +1,216 @@
-# TUI Beach Holiday Booking - E2E Tests
+# TUI Playwright Framework
 
-Playwright-based end-to-end testing framework for TUI holiday booking flow with automated validation.
+Modern Playwright E2E testing framework for TUI booking flow with TypeScript and Page Object Model.
 
-## Setup
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
+- Node.js 18+
+- npm
 
 ### Installation
 
-1. Clone the repository
-2. Install dependencies:
-
 ```bash
 npm install
-```
-
-3. Install Playwright browsers:
-
-```bash
 npx playwright install
 ```
 
-4. Configure environment variables:
+### Environment Setup
 
-Create a `.env` file in the root directory:
+Create `.env`:
 
 ```env
 CONNECTION_STRING_APP=https://www.tui.nl
-CONNECTION_STRING_API=https://api.tui.nl
 ENV_NAME=LOCAL
 ```
 
 ## Running Tests
 
-### Run all tests (headless mode)
-
 ```bash
-npx playwright test
+npm test                     # Run all tests
+npm test -- --headed         # Run in headed mode
+npm test -- --debug          # Debug mode
+npm test -- --ui             # Playwright UI mode
 ```
 
-### Run tests in headed mode (see browser)
-
-```bash
-npx playwright test --headed
-```
-
-### Run specific test file
+Run a specific test:
 
 ```bash
 npx playwright test tests/ui/tui-beach-booking.spec.ts
 ```
 
-### Run tests in debug mode
+## Development Commands
 
 ```bash
-npx playwright test --debug
+npm run typecheck            # TypeScript checking
+npm run lint                 # Lint sources
+npm run lint:fix             # Auto-fix
+npm run format               # Prettier formatting
+npm run format:check         # Verify formatting
+npm run clear                # Remove reports and storage
 ```
 
-### Run tests in UI mode (interactive)
+## Reports & Debugging
 
 ```bash
-npx playwright test --ui
-```
-
-## Viewing Results
-
-### HTML Report
-
-After test execution, view the HTML report:
-
-```bash
-npx playwright show-report
-```
-
-The report includes:
-- Test execution results
-- Screenshots on failure
-- Video recordings
-- Step-by-step execution details
-
-### Trace Viewer
-
-To analyze test execution with detailed trace:
-
-```bash
-npx playwright show-trace test-results/<test-folder>/trace.zip
-```
-
-Trace viewer provides:
-- Network activity
-- Console logs
-- DOM snapshots
-- Action timeline
-- Screenshots at each step
-
-### View specific test trace
-
-```bash
-# Example path from test results
-npx playwright show-trace test-results/ui-tui-beach-booking-TUI-b-a54d2-dation-on-passenger-details-e2e-ui/trace.zip
-```
-
-## Debugging & Development
-
-### Playwright Inspector
-
-Debug tests step-by-step:
-
-```bash
-npx playwright test --debug
-```
-
-### Validate UI Selectors
-
-Use Playwright's codegen to inspect and validate selectors:
-
-```bash
+npx playwright show-report              # HTML report
+npx playwright show-trace trace.zip     # Trace viewer
 npx playwright codegen https://www.tui.nl
 ```
 
-This opens:
-- A browser window to interact with the site
-- Inspector showing generated selectors
-- Record/pause functionality
+## Project Structure
 
-### Pick Locator (in existing browser)
+```
+pages/
+  core/
+    Fragment.ts             # Base class: typed locators + autosteps
+    Component.ts            # UI components with root & helpers
+    BasePage.ts             # Navigation + network idle + cookies/modals handling
+    NetworkCounter.ts       # Network idle detection
+    WithSteps.ts            # Auto test.step() decorator
+    objectToLocator.ts      # Converts locator object → Locator API
 
-```bash
-npx playwright codegen --target=csharp https://www.tui.nl
+  components/
+    TuiDepartureAirport.ts
+    TuiDestinationAirport.ts
+    TuiDepartureDate.ts
+    TuiRoomsAndGuests.ts
+
+  tui/
+    TuiHomePage.ts
+    TuiSearchResultsPage.ts
+    TuiHotelDetailsPage.ts
+    TuiFlightsPage.ts
+    TuiPassengerDetailsPage.ts
+    TuiSummaryBookingPage.ts
+
+  utils/
+    inputUtils.ts
+    random.ts
+    stepDecorator.ts
+
+tests/
+  ui/
+    tui-beach-booking.spec.ts
+  fixtures/
+    passengerValidation.data.ts
+
+storage/
+  tui-region.json
 ```
 
-Or from within test:
+## Architecture
+
+```
+Fragment
+├── Component        // UI widgets
+│    ├── TuiDepartureAirport
+│    ├── TuiDepartureDate
+│    ├── TuiDestinationAirport
+│    └── TuiRoomsAndGuests
+└── BasePage         // Page-level behavior
+     ├── TuiHomePage
+     ├── TuiSearchResultsPage
+     ├── TuiHotelDetailsPage
+     ├── TuiFlightsPage
+     ├── TuiPassengerDetailsPage
+     └── TuiSummaryBookingPage
+```
+
+### Fragment
+
+- Typed locator model (object with typed locators)
+- Converts string locators → Playwright Locator
+- Wraps all async methods in `test.step` (via `WithSteps`)
+- Provides low-level element helpers
+
+### Component
+
+- Inherits `Fragment`
+- Has `root: Locator`
+- Provides UI-level APIs: `click()`, `fill()`, `waitVisible()`, `getText()`, `isVisible()` …
+- Used to build reusable UI widgets (airport picker, date selector, rooms & guests)
+
+### BasePage
+
+- Inherits `Fragment`
+- Handles page-wide behavior:
+  - navigation (`open()`)
+  - network idle (`waitNetworkIdle()`)
+  - closing cookie banners, overlays, newsletter popups
+  - page preparation (`preparePage()`)
+
+Each page composes multiple components into a real booking flow.
+
+## Extending the Framework
+
+### Create a new Component
 
 ```typescript
-await page.pause(); // Pauses execution and opens inspector
+const locators = {
+  root: '.my-component',
+  button: '.my-button',
+  input: '.my-input',
+};
+
+export class MyComponent extends Component<typeof locators> {
+  constructor(page: Page) {
+    super(locators, page);
+  }
+}
 ```
 
-## Config
+### Create a new Page
 
-Just handles env variables via `dotenv` library.
+```typescript
+const locators = {
+  header: '.header',
+  content: '.content',
+};
 
-Available environment variables:
-- `CONNECTION_STRING_APP` - TUI website URL
-- `CONNECTION_STRING_API` - TUI API URL (for future use)
-- `ENV_NAME` - Environment name (DEV/QA/LOCAL)
-- `CI` - CI environment flag
+export class MyPage extends BasePage<typeof locators> {
+  private myComponent: MyComponent;
 
-## Pages
+  constructor(page: Page) {
+    super(locators, page);
+    this.myComponent = new MyComponent(page);
+  }
 
-Structure: `Fragment` -> `Component` -> `Page`
-
-- **Fragment**: atomic entity, contains:
-  - converter of string locators to `playwright page.locator`
-  - decorator to wrap ALL async methods into `test.step` with meaningful name
-  - network listener that waits until network requests and responses to match
-- **Component**: all above + multiple fragments
-- **Page**: all above + components required for specific page
+  async open() {
+    await this.page.goto('/my-page');
+    await this.preparePage();
+  }
+}
+```
 
 ## Test Scenario: TUI Beach Holiday Booking
 
-The main E2E test (`tests/ui/tui-beach-booking.spec.ts`) covers the following flow:
+The E2E test performs:
 
-1. **Open the homepage** - Navigate to TUI homepage and handle initial setup
-2. **Accept the cookies pop-up** - Handle GDPR consent banner
-3. **Select a random available departure airport** - Choose from available NL airports
-4. **Select a random available destination airport** - Pick random country and city
-5. **Select an available departure date** - Choose from available dates in the calendar
-6. **Configure "Rooms & Guests"** - Set 2 adults and 1 child (child age randomly selected from 2-15 years)
-7. **Search for holidays** - Submit the search form
-8. **Pick the first available hotel** - Select first hotel from search results
-9. **Continue from hotel details page** - Navigate to flight selection
-10. **Select available flights** - Choose outbound and inbound flights
-11. **Navigate to Passenger details page** - Proceed to passenger information form
-12. **Validate passenger details form** - Test error messages for invalid inputs:
-    - Special characters and numbers in first name
-    - First name exceeding maximum length (over 32 characters)
-    - First name with only whitespace
-    - Empty first name
-    - First name with single character (below minimum)
+1. Open homepage & prepare environment
+2. Accept cookies
+3. Select departure + destination
+4. Pick date
+5. Configure rooms & guests
+6. Search for holidays
+7. Select hotel
+8. Select flights
+9. Go to passenger details
+10. Validate passenger form inputs
+11. Navigate to summary
 
-### Key Components
-
-- **TuiHomePage** - Homepage with search functionality
-- **TuiSearchResultsPage** - Hotel search results
-- **TuiHotelDetailsPage** - Hotel details and booking
-- **TuiFlightsPage** - Flight selection
-- **TuiPassengerDetailsPage** - Passenger information and validation
-- **TuiRoomsAndGuests** - Component for selecting travelers and room configuration
-
-### Utilities
-
-- **random** (`pages/utils/random.ts`) - Helper functions for random selection:
-  - `getRandomInt(min, max)` - Generate random integers
-  - `pickRandom<T>(items)` - Pick random item from array
+This is a full real-world booking journey.
 
 ## Storage State
 
-The project uses Playwright's storage state feature to persist browser context:
+Framework supports Playwright `storageState`:
 
-- **`storage/tui-region.json`** - Stores cookies and session data for TUI region
-- This can be used to skip authentication/setup steps in future test runs
-- Useful for maintaining region-specific cookies and preferences
-
-To use storage state in tests:
+- Saves cookies, region settings, preferences
+- Stored in `storage/tui-region.json`
 
 ```typescript
-// Load existing storage state
 const context = await browser.newContext({
-  storageState: 'storage/tui-region.json'
+  storageState: 'storage/tui-region.json',
 });
-
-// Save storage state after setup
-await context.storageState({ path: 'storage/tui-region.json' });
 ```

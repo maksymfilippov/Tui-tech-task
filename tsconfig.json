@@ -1,21 +1,21 @@
 {
-	"compilerOptions": {
-		"module": "NodeNext",
-		"target": "ESNext",
-		"moduleResolution": "NodeNext", 
-		"sourceMap": true,
-		"outDir": "built",
-		"strict": true,
-		"declaration": true,
-		"experimentalDecorators": true,
-		"allowJs": true,
-		"resolveJsonModule": true,
-		"esModuleInterop": true,
-		"types": ["node", "playwright"],  
-		"paths": {
-			"@/*": ["./*"]
-		}
-	},
-	"include": ["**/*.ts", "eslint.config.mjs"],
-	"exclude": ["node_modules", "built", "test-results", "playwright-report"]
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ESNext",
+    "moduleResolution": "NodeNext",
+    "sourceMap": true,
+    "outDir": "built",
+    "strict": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "types": ["node", "playwright"],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "eslint.config.mjs"],
+  "exclude": ["node_modules", "built", "test-results", "playwright-report"]
 }
