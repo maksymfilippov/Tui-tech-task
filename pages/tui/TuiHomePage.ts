@@ -6,16 +6,13 @@ import {
   TuiDepartureDate,
   TuiRoomsAndGuests,
 } from '@/pages/components';
+import { PASSENGER, TIMEOUTS, SELECTORS, TEXT_PATTERNS } from '@/internal/config/constants';
 
 const selectors = {
-  departureInput: 'input.SelectAirports__pointer',
-  destinationInput:
-    '[data-test-id="destination-input"], input[placeholder*="Destination"], input[placeholder*="Hotel"], input[placeholder*="Bestemming"]',
-
-  roomsGuestsButton:
-    '[aria-label="room and guest"], [aria-label*="Reiziger"], button:has-text("Reiziger"), button:has-text("Reizigers")',
-
-  searchButton: 'button:has-text("ZOEKEN"), button:has-text("Zoeken"), button:has-text("Search")',
+  departureInput: SELECTORS.DEPARTURE_INPUT,
+  destinationInput: SELECTORS.DESTINATION_INPUT,
+  roomsGuestsButton: SELECTORS.ROOMS_GUESTS_BUTTON,
+  searchButton: SELECTORS.SEARCH_BUTTON,
 } as const;
 
 export class TuiHomePage extends BasePage<typeof selectors> {
@@ -43,23 +40,36 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   }
 
   async acceptCookiesIfPresent(): Promise<void> {
-    const banner = this.page.locator('#cmNotifyBanner, #__tealiumGDPRecModal');
-    if (!(await banner.isVisible().catch(() => false))) return;
+    const buttonSelectors = [
+      '#cmNotifyBanner button',
+      '#__tealiumGDPRecModal button',
+      'button:has-text("Akkoord")',
+      'button:has-text("Accepteer")',
+      'button:has-text("Accepteren")',
+      'button:has-text("Alles accepteren")',
+      'button:has-text("Accept")',
+    ];
 
-    const button = banner
-      .getByRole('button')
-      .filter({
-        hasText: /Akkoord|Accepteer|Accepteren|Alles accepteren|Accept/i,
-      })
-      .first();
+    for (const selector of buttonSelectors) {
+      try {
+        const button = this.page.locator(selector).first();
+        if (await button.isVisible({ timeout: 500 })) {
+          await button.click({ force: true, timeout: 3_000 });
+          await this.page.waitForTimeout(TIMEOUTS.COOKIE_CLICK_DELAY);
+          console.log('Cookies banner accepted');
 
-    try {
-      if (await button.isVisible({ timeout: 2_000 })) {
-        await button.click();
-        await banner.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
-        console.log('Cookies banner accepted');
+          await this.page
+            .evaluate(() => {
+              const banner = document.querySelector('#cmNotifyBanner, #__tealiumGDPRecModal');
+              if (banner) banner.remove();
+            })
+            .catch(() => {});
+          return;
+        }
+      } catch {
+        continue;
       }
-    } catch {}
+    }
   }
 
   async ensureReady(): Promise<void> {
@@ -67,12 +77,14 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   }
 
   async selectRandomDepartureAirportNL(): Promise<string> {
+    await this.ensureReady();
     const name = await this.departureAirport.selectDepartureAirport();
     console.log('\n[TUI] Departure airport selected\n' + name);
     return name;
   }
 
   async selectRandomDestinationAirport(): Promise<string> {
+    await this.ensureReady();
     const { country, city } = await this.destinationAirport.setDestination();
     const full = `${country} — ${city}`;
     console.log('\n[TUI] Destination selected\n' + full);
@@ -80,9 +92,37 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   }
 
   async selectAnyAvailableDepartureDate(): Promise<string> {
+    await this.ensureReady();
     const date = await this.departureDate.setDepartureDate('3');
     console.log('\n[TUI] Departure date selected\n' + date);
     return date;
+  }
+
+  // Select destination and date with automatic retry on failure
+  // If dates are unavailable for selected destination, reloads page and tries different destination
+  async selectDestinationAndDateWithRetry(maxRetries: number = 3): Promise<void> {
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await this.selectRandomDestinationAirport();
+        await this.selectAnyAvailableDepartureDate();
+        return;
+      } catch (error: unknown) {
+        retryCount++;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log(`Attempt ${retryCount} failed: ${errorMessage}`);
+
+        if (retryCount < maxRetries) {
+          console.log('Retrying with different destination...');
+          await this.page.reload();
+          await this.ensureReady();
+          await this.selectRandomDepartureAirportNL();
+        } else {
+          throw error;
+        }
+      }
+    }
   }
 
   async setRoomsAndGuestsTwoAdultsOneChild(): Promise<number> {
@@ -114,7 +154,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
     }
 
     const region = this.page.getByRole('region', {
-      name: /room and guest|passengers|Reiziger|Reizigers/i,
+      name: TEXT_PATTERNS.ROOMS_GUESTS,
     });
     await expect(region).toBeVisible({ timeout: 10_000 });
 
@@ -123,7 +163,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
       .locator(
         '.DropModal__dropModalContent, .dropModalScope_roomandguest, .DropModal__contentAlign'
       )
-      .filter({ hasText: /Volwassenen|Adults|Reiziger|Reizigers/i })
+      .filter({ hasText: TEXT_PATTERNS.ADULTS })
       .first();
     if ((await candidateModal.count()) && (await candidateModal.isVisible().catch(() => false))) {
       modalRoot = candidateModal;
@@ -163,7 +203,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
         await adultsInput.fill('2');
         const val = await adultsInput.inputValue().catch(() => '');
         if (val !== '2') {
-          await this.page.waitForTimeout(200);
+          await this.page.waitForTimeout(TIMEOUTS.DROPDOWN_OPEN_DELAY);
         }
       } catch {}
     }
@@ -193,7 +233,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
         } catch (err) {
           if (String(err).includes('Target page, context or browser has been closed')) throw err;
         }
-        await this.page.waitForTimeout(150 + attempt * 100);
+        await this.page.waitForTimeout(TIMEOUTS.RETRY_BASE_DELAY + attempt * 100);
       }
       return false;
     };
@@ -250,7 +290,7 @@ export class TuiHomePage extends BasePage<typeof selectors> {
         success = true;
         break;
       }
-      await this.page.waitForTimeout(200);
+      await this.page.waitForTimeout(TIMEOUTS.DROPDOWN_OPEN_DELAY);
     }
 
     if (!success) {
@@ -286,7 +326,10 @@ export class TuiHomePage extends BasePage<typeof selectors> {
 
     await expect(ageSelect).toBeVisible({ timeout: 10_000 });
 
-    const randomAge = 2 + Math.floor(Math.random() * 14);
+    // Generate random child age (2-15 years) - TUI.nl accepts children ages from 2 to 15
+    const randomAge =
+      PASSENGER.MIN_CHILD_AGE +
+      Math.floor(Math.random() * (PASSENGER.MAX_CHILD_AGE - PASSENGER.MIN_CHILD_AGE - 1));
     await ageSelect.selectOption(String(randomAge)).catch(async () => {
       const option = region.getByText(String(randomAge), { exact: true }).first();
       await option.click();

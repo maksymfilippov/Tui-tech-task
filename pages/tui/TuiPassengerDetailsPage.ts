@@ -1,10 +1,11 @@
 import { Page, expect } from '@playwright/test';
 import { BasePage } from '@/pages/core';
+import { PassengerData } from '@/tests/types/PassengerData';
+import { TIMEOUTS, SELECTORS } from '@/internal/config/constants';
 
 const selectors = {
   pageHeading: 'h1',
-  submitButton:
-    'button:has-text("Continue"), button:has-text("Ga verder"), button:has-text("Doorgaan"), button[type="submit"], .ProgressbarNavigation__summaryButton button',
+  submitButton: SELECTORS.SUBMIT_BUTTON,
 } as const;
 
 export type PassengerDetailsData = Record<string, Record<string, string>>;
@@ -17,31 +18,184 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
   }
 
   async pageLoaded(): Promise<this> {
-    await this.acceptCookiesIfPresent().catch(() => {});
-
     await this.page.waitForURL(new RegExp(`.*${this.pagePrefix}.*`), {
-      timeout: 40_000,
+      timeout: TIMEOUTS.PAGE_NAVIGATION_TIMEOUT,
       waitUntil: 'domcontentloaded',
     });
 
-    const heading = this.page
-      .locator('h1')
-      .filter({ hasText: /Persoonsgegevens|Passenger details/i });
-    await expect(heading).toBeVisible({ timeout: 15_000 });
+    const heading = this.page.locator('h1').filter({ hasText: 'Persoonsgegevens' });
+    await expect(heading).toBeVisible({ timeout: TIMEOUTS.PAGE_HEADING_TIMEOUT });
 
     return this;
   }
 
   async triggerValidation(): Promise<void> {
-    await this.page.waitForTimeout(1000);
     const button = this.locators.submitButton.first();
-    await expect(button).toBeVisible({ timeout: 10_000 });
+    await expect(button).toBeVisible();
 
     await button.click().catch(async () => {
       await button.click({ force: true });
     });
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
+  }
+
+  async validateRequiredFieldsOnSubmit(): Promise<void> {
+    const submitButton = this.page.locator(
+      'button[role="button"][aria-label="button"]:has-text("Verder naar betalen")'
+    );
+    await expect(submitButton).toBeVisible({ timeout: 5_000 });
+    await submitButton.click();
+    await this.page.waitForTimeout(TIMEOUTS.MODAL_VISIBILITY_TIMEOUT);
+    const errors = await this.page
+      .locator('.inputs__errorMessage:visible, .inputs__error:visible')
+      .all();
+
+    if (errors.length === 0) {
+      throw new Error('Expected validation errors for empty required fields, but none were found');
+    }
+
+    console.log(`✅ Found ${errors.length} validation error(s) for required fields`);
+  }
+
+  async validateField(
+    fieldName: keyof PassengerData,
+    value: string,
+    expectedError: string
+  ): Promise<void> {
+    switch (fieldName) {
+      case 'firstName':
+        await this.page.locator('#FIRSTNAMEADULT1').fill(value);
+        break;
+      case 'lastName':
+        await this.page.locator('#SURNAMEADULT1').fill(value);
+        break;
+      case 'email':
+        await this.page.locator('#EMAILADDRESSADULT1').fill(value);
+        break;
+      case 'phone':
+        await this.page.locator('#MOBILENUMBERADULT1').fill(value);
+        break;
+      case 'dateOfBirth': {
+        const parts = value.split(/[-/]/);
+        if (parts.length === 3) {
+          await this.page.getByRole('textbox', { name: 'day' }).first().fill(parts[0]);
+          await this.page.getByRole('textbox', { name: 'month' }).first().fill(parts[1]);
+          await this.page.getByRole('textbox', { name: 'year' }).first().fill(parts[2]);
+        }
+        break;
+      }
+      case 'passport':
+        await this.page
+          .locator('#PASSPORTNUMBERADULT1')
+          .or(this.page.locator('[id*="PASSPORT"]').first())
+          .fill(value)
+          .catch(() => {
+            console.log('Passport field not available');
+          });
+        break;
+      case 'gender':
+        await this.page.locator('#GENDERADULT1').selectOption(value.toUpperCase());
+        break;
+    }
+
+    await this.page
+      .locator('h1')
+      .click()
+      .catch(() => {});
+    await this.page.waitForTimeout(TIMEOUTS.FIELD_VALIDATION_DELAY);
+
+    let fieldSelector: string = '';
+    switch (fieldName) {
+      case 'firstName':
+        fieldSelector = '#FIRSTNAMEADULT1';
+        break;
+      case 'lastName':
+        fieldSelector = '#SURNAMEADULT1';
+        break;
+      case 'email':
+        fieldSelector = '#EMAILADDRESSADULT1';
+        break;
+      case 'phone':
+        fieldSelector = '#MOBILENUMBERADULT1';
+        break;
+      case 'dateOfBirth':
+        fieldSelector = '[name="day"]';
+        break;
+      case 'passport':
+        fieldSelector = '#PASSPORTNUMBERADULT1';
+        break;
+      case 'gender':
+        fieldSelector = '#GENDERADULT1';
+        break;
+    }
+
+    let errorLocator;
+    if (fieldName === 'dateOfBirth') {
+      errorLocator = this.page.locator('.inputs__error.inputs__errorMessageWithIcon');
+    } else {
+      const field = this.page.locator(fieldSelector);
+      errorLocator = field
+        .locator('..')
+        .locator('.inputs__errorMessage:visible, [role="alert"]:visible')
+        .first();
+    }
+
+    await expect(errorLocator).toBeVisible({ timeout: 5_000 });
+
+    const actualError = await errorLocator.innerText();
+    expect(actualError.trim()).toContain(expectedError);
+  }
+
+  async clearAllFields(): Promise<void> {
+    await this.page.locator('#FIRSTNAMEADULT1').fill('');
+    await this.page.locator('#SURNAMEADULT1').fill('');
+    await this.page.locator('#EMAILADDRESSADULT1').fill('');
+    await this.page.locator('#MOBILENUMBERADULT1').fill('');
+    await this.page.getByRole('textbox', { name: 'day' }).first().fill('');
+    await this.page.getByRole('textbox', { name: 'month' }).first().fill('');
+    await this.page.getByRole('textbox', { name: 'year' }).first().fill('');
+  }
+
+  private async fillPassengerForm(data: PassengerData): Promise<void> {
+    if (data.gender) {
+      await this.page.locator('#GENDERADULT1').selectOption(data.gender.toUpperCase());
+    }
+
+    if (data.firstName) {
+      await this.page.locator('#FIRSTNAMEADULT1').fill(data.firstName);
+    }
+
+    if (data.lastName) {
+      await this.page.locator('#SURNAMEADULT1').fill(data.lastName);
+    }
+
+    if (data.dateOfBirth) {
+      const parts = data.dateOfBirth.split(/[-/]/);
+      if (parts.length === 3) {
+        await this.page.getByRole('textbox', { name: 'day' }).first().fill(parts[0]);
+        await this.page.getByRole('textbox', { name: 'month' }).first().fill(parts[1]);
+        await this.page.getByRole('textbox', { name: 'year' }).first().fill(parts[2]);
+      }
+    }
+
+    if (data.phone) {
+      await this.page.locator('#MOBILENUMBERADULT1').fill(data.phone);
+    }
+
+    if (data.email) {
+      await this.page.locator('#EMAILADDRESSADULT1').fill(data.email);
+    }
+
+    if (data.passport) {
+      await this.page
+        .locator('#PASSPORTNUMBERADULT1')
+        .or(this.page.locator('[id*="PASSPORT"]').first())
+        .fill(data.passport)
+        .catch(() => {
+          console.log('Passport field not available');
+        });
+    }
   }
 
   async personalDetailsValidating(
@@ -88,8 +242,6 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
   private inputLocatorBuilder(passengerKey: string, fieldName: string) {
     const fieldUpper = fieldName.toUpperCase();
     const passengerUpper = passengerKey.toUpperCase();
-
-    const passengerType = passengerUpper.replace(/\d+$/, '');
 
     const exactId = `[id="${fieldUpper}${passengerUpper}"]`;
     const exactName = `[name="${fieldUpper}${passengerUpper}"]`;

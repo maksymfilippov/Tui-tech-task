@@ -2,6 +2,16 @@
 
 Modern Playwright E2E testing framework for TUI booking flow with TypeScript and Page Object Model.
 
+## Features
+
+- **Page Object Model** - Clean separation of concerns
+- **Automatic retry logic** - Handles TUI.nl booking flow instability
+- **Comprehensive validation** - 18 test cases for passenger form fields
+- **Type-safe** - Full TypeScript coverage
+- **Centralized configuration** - All timeouts, selectors, patterns in one place
+- **Locale-aware** - Dutch/English text matching with regex patterns
+- **Fallback strategies** - Multiple navigation paths handled automatically
+
 ## Quick Start
 
 ### Prerequisites
@@ -62,14 +72,18 @@ npx playwright codegen https://www.tui.nl
 ## Project Structure
 
 ```
+internal/
+  config/
+    constants.ts           # Timeouts, selectors, patterns
+    variables.ts           # Environment variables
+
 pages/
   core/
-    Fragment.ts             # Base class: typed locators + autosteps
-    Component.ts            # UI components with root & helpers
-    BasePage.ts             # Navigation + network idle + cookies/modals handling
-    NetworkCounter.ts       # Network idle detection
-    WithSteps.ts            # Auto test.step() decorator
-    objectToLocator.ts      # Converts locator object → Locator API
+    Fragment.ts            # Base class: typed locators + autosteps
+    Component.ts           # UI components with root & helpers
+    BasePage.ts            # Navigation + cookies/modals handling
+    WithSteps.ts           # Auto test.step() decorator
+    objectToLocator.ts     # Converts locator object → Locator API
 
   components/
     TuiDepartureAirport.ts
@@ -91,10 +105,13 @@ pages/
     stepDecorator.ts
 
 tests/
+  data/
+    validationTestCases.json        # JSON with all validation test cases
+    ValidationTestCaseFactory.ts    # Factory for validation tests
+  types/
+    PassengerData.ts                # TypeScript interfaces
   ui/
-    tui-beach-booking.spec.ts
-  fixtures/
-    passengerValidation.data.ts
+    tui-beach-booking.spec.ts       # Main E2E test
 
 storage/
   tui-region.json
@@ -102,46 +119,61 @@ storage/
 
 ## Architecture
 
+The framework uses a three-tier hierarchy:
+
 ```
-Fragment
-├── Component        // UI widgets
-│    ├── TuiDepartureAirport
-│    ├── TuiDepartureDate
-│    ├── TuiDestinationAirport
-│    └── TuiRoomsAndGuests
-└── BasePage         // Page-level behavior
-     ├── TuiHomePage
-     ├── TuiSearchResultsPage
-     ├── TuiHotelDetailsPage
-     ├── TuiFlightsPage
-     ├── TuiPassengerDetailsPage
-     └── TuiSummaryBookingPage
+Fragment (pages/core/Fragment.ts)
+    ├── Component (pages/core/Component.ts)
+    │   └── UI Components (pages/components/)
+    │       ├── TuiDepartureAirport
+    │       ├── TuiDepartureDate
+    │       ├── TuiDestinationAirport
+    │       └── TuiRoomsAndGuests
+    │
+    └── BasePage (pages/core/BasePage.ts)
+        └── Page Objects (pages/tui/)
+            ├── TuiHomePage
+            ├── TuiSearchResultsPage
+            ├── TuiHotelDetailsPage
+            ├── TuiFlightsPage
+            ├── TuiPassengerDetailsPage
+            └── TuiSummaryBookingPage
 ```
 
-### Fragment
+### Fragment (`pages/core/Fragment.ts`)
 
+Base class for all page objects and components:
 - Typed locator model (object with typed locators)
 - Converts string locators → Playwright Locator
 - Wraps all async methods in `test.step` (via `WithSteps`)
 - Provides low-level element helpers
 
-### Component
+### Component (`pages/core/Component.ts`)
 
-- Inherits `Fragment`
-- Has `root: Locator`
-- Provides UI-level APIs: `click()`, `fill()`, `waitVisible()`, `getText()`, `isVisible()` …
-- Used to build reusable UI widgets (airport picker, date selector, rooms & guests)
+Extends `Fragment` for reusable UI widgets:
+- Has `root: Locator` for scoped locators
+- Provides UI-level APIs: `click()`, `fill()`, `waitVisible()`, `getText()`, `isVisible()`
+- Used for reusable UI components (airport picker, date selector, rooms & guests)
 
-### BasePage
+### BasePage (`pages/core/BasePage.ts`)
 
-- Inherits `Fragment`
-- Handles page-wide behavior:
-  - navigation (`open()`)
-  - network idle (`waitNetworkIdle()`)
-  - closing cookie banners, overlays, newsletter popups
-  - page preparation (`preparePage()`)
+Extends `Fragment` for page-level behavior:
+- Navigation (`open()`, `preparePage()`)
+- Handles cookies, modals, overlays, newsletter popups
+- Each page composes multiple components into a real booking flow
 
-Each page composes multiple components into a real booking flow.
+### Test Data Management
+
+- **ValidationTestCaseFactory**: Factory pattern for validation test cases
+  - Single source of truth: `validationTestCases.json`
+  - 18 validation test cases across 5 fields:
+    - First name (3 cases): too short, numbers, special chars
+    - Last name (3 cases): too short, numbers, special chars
+    - Email (5 cases): missing @, domain, local part, TLD, consecutive dots
+    - Phone (4 cases): too short, letters, special chars, country code only
+    - Date of birth (3 cases): invalid day, month, format
+  - Exported constants: `FIRST_NAME_VALIDATION`, `LAST_NAME_VALIDATION`, etc.
+  - Methods: `getTestCasesForField()`, `getAllTestCases()`, `getTestCasesByPattern()`
 
 ## Extending the Framework
 
@@ -188,19 +220,22 @@ export class MyPage extends BasePage<typeof locators> {
 
 The E2E test performs:
 
-1. Open homepage & prepare environment
-2. Accept cookies
-3. Select departure + destination
-4. Pick date
-5. Configure rooms & guests
-6. Search for holidays
-7. Select hotel
-8. Select flights
-9. Go to passenger details
-10. Validate passenger form inputs
-11. Navigate to summary
+1. **Open homepage & prepare** - Accept cookies, close modals
+2. **Select departure airport** - Random Dutch airport
+3. **Select destination and date** - With automatic retry on failure
+4. **Set rooms & guests** - 2 adults + 1 child (random age 2-15)
+5. **Search holidays** - Submit search form
+6. **Open first hotel** - From search results
+7. **Continue to flights** - From hotel details
+8. **Select flights** - Continue to passengers or summary (with fallback)
+9. **Validate passenger form** - Test all 18 validation cases:
+   - First name validation (3 cases)
+   - Last name validation (3 cases)
+   - Email validation (5 cases)
+   - Phone validation (4 cases)
+   - Date of birth validation (3 cases)
 
-This is a full real-world booking journey.
+This is a full real-world booking journey with comprehensive form validation.
 
 ## Storage State
 

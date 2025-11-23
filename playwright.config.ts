@@ -30,7 +30,7 @@ export default defineConfig({
     {
       name: 'e2e | ui',
       testMatch: '**/ui/*.spec.ts',
-      timeout: 180000,
+      timeout: 210000,
       expect: { timeout: 10000 },
       use: {
         ...devices['Desktop Chrome'],

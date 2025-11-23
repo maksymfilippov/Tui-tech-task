@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { Component } from '@/pages/core';
 import { pickRandom } from '@/pages/utils/random';
+import { TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   root: '.dropModalScope_destinations',
@@ -40,7 +41,7 @@ export class TuiDestinationAirport extends Component<typeof selectors> {
       });
 
       await this.page.goBack();
-      await this.page.waitForTimeout(500);
+      await this.page.waitForTimeout(TIMEOUTS.NAVIGATION_BACK_DELAY);
     }
 
     await this.closeDropdown();

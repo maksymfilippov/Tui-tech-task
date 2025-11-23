@@ -4,8 +4,13 @@ import { TuiSearchResultsPage } from '@/pages/tui/TuiSearchResultsPage';
 import { TuiPassengerDetailsPage } from '@/pages/tui/TuiPassengerDetailsPage';
 import { TuiHotelDetailsPage } from '@/pages/tui/TuiHotelDetailsPage';
 import { TuiFlightsPage } from '@/pages/tui/TuiFlightsPage';
-import { TuiSummaryBookingPage } from '../../pages/tui/TuiSummaryBookingPage';
-import { firstNameValidationCases } from '../fixtures/passengerValidation.data';
+import {
+  FIRST_NAME_VALIDATION,
+  LAST_NAME_VALIDATION,
+  EMAIL_VALIDATION,
+  PHONE_VALIDATION,
+  DATE_OF_BIRTH_VALIDATION,
+} from '../data/ValidationTestCaseFactory';
 
 test.describe('TUI beach holiday booking', () => {
   test('[E2E] Booking flow with validation on passenger details', async ({ page }) => {
@@ -21,12 +26,8 @@ test.describe('TUI beach holiday booking', () => {
       await homePage.selectRandomDepartureAirportNL();
     });
 
-    await test.step('Select destination', async () => {
-      await homePage.selectRandomDestinationAirport();
-    });
-
-    await test.step('Select departure date', async () => {
-      await homePage.selectAnyAvailableDepartureDate();
+    await test.step('Select destination and date', async () => {
+      await homePage.selectDestinationAndDateWithRetry();
     });
 
     await test.step('Set rooms & guests (2 adults, 1 child)', async () => {
@@ -48,36 +49,39 @@ test.describe('TUI beach holiday booking', () => {
 
     await test.step('Select available flights and continue', async () => {
       const flightsPage = new TuiFlightsPage(page);
-      try {
-        await flightsPage.continueToPassengers();
-      } catch (err) {
-        let currentPage = page;
-        try {
-          const pages = page.context().pages();
-          const alive = pages.reverse().find(p => !p.isClosed());
-          if (alive) currentPage = alive;
-        } catch {}
-        const summary = new TuiSummaryBookingPage(currentPage);
-        await summary.pageLoaded().catch(async () => {
-          await summary.navigate();
-        });
-        await summary.proceedBooking();
-      }
+      await flightsPage.continueToPassengersOrSummary();
     });
 
-    await test.step('Validate passenger details form', async () => {
+    await test.step('Validate passenger form fields', async () => {
       const passengerPage = new TuiPassengerDetailsPage(page);
       await passengerPage.pageLoaded();
 
-      console.log(`\n[TUI] Starting validation tests: ${firstNameValidationCases.length} cases`);
-
-      for (const { description, validationData, expectedErrorText } of firstNameValidationCases) {
-        await test.step(`Validate: ${description}`, async () => {
-          console.log(`\n--- Test Case: ${description} ---`);
-          await passengerPage.personalDetailsValidating(validationData, expectedErrorText);
-          console.log(`✓ Validation passed for: ${description}`);
-        });
+      for (const testCase of FIRST_NAME_VALIDATION) {
+        console.log(`Testing firstName: ${testCase.description}`);
+        await passengerPage.validateField('firstName', testCase.value, testCase.expectedError);
       }
+
+      for (const testCase of LAST_NAME_VALIDATION) {
+        console.log(`Testing lastName: ${testCase.description}`);
+        await passengerPage.validateField('lastName', testCase.value, testCase.expectedError);
+      }
+
+      for (const testCase of EMAIL_VALIDATION) {
+        console.log(`Testing email: ${testCase.description}`);
+        await passengerPage.validateField('email', testCase.value, testCase.expectedError);
+      }
+
+      for (const testCase of PHONE_VALIDATION) {
+        console.log(`Testing phone: ${testCase.description}`);
+        await passengerPage.validateField('phone', testCase.value, testCase.expectedError);
+      }
+
+      for (const testCase of DATE_OF_BIRTH_VALIDATION) {
+        console.log(`Testing dateOfBirth: ${testCase.description}`);
+        await passengerPage.validateField('dateOfBirth', testCase.value, testCase.expectedError);
+      }
+
+      console.log('All field validations passed!');
     });
   });
 });

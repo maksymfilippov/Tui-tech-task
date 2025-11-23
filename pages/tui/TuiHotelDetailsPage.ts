@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BasePage } from '@/pages/core';
+import { TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   hotelTitle: 'h1',
@@ -37,10 +38,10 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
         try {
           await this.page.waitForSelector(sel, { timeout: 5_000, state: 'visible' });
           return;
-        } catch (err) {}
+        } catch {}
       }
 
-      await this.page.waitForTimeout(1500);
+      await this.page.waitForTimeout(TIMEOUTS.HOTEL_SELECTION_DELAY);
     } catch (err: any) {
       if (
         String(err).includes('Target page') ||

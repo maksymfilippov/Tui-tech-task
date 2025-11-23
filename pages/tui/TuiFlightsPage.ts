@@ -18,6 +18,24 @@ export class TuiFlightsPage extends BasePage<typeof selectors> {
     await this.locators.inboundFlight.click();
   }
 
+  // Continue to passengers page with fallback to summary page if needed
+  // Handles cases where flight selection redirects to summary instead of passenger details
+  async continueToPassengersOrSummary(): Promise<void> {
+    try {
+      await this.continueToPassengers();
+    } catch {
+      let currentPage = this.page;
+      try {
+        const pages = this.page.context().pages();
+        const alive = pages.reverse().find(p => !p.isClosed());
+        currentPage = alive || this.page;
+      } catch {}
+      const summary = new TuiSummaryBookingPage(currentPage);
+      await summary.pageLoaded();
+      await summary.proceedBooking();
+    }
+  }
+
   async continueToPassengers() {
     const selectors = [
       '.ProgressbarNavigation__summaryButton button',

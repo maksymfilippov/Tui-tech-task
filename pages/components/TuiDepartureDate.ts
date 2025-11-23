@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { Component } from '@/pages/core';
+import { TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   root: '.DropModal__dropModalContent.dropModalScope_Departuredate',
@@ -29,6 +30,7 @@ export class TuiDepartureDate extends Component<typeof selectors> {
 
   async setDepartureDate(daysTolerance: DayTolerance): Promise<string> {
     await this.openDatePicker();
+    await this.page.waitForTimeout(TIMEOUTS.DATE_PICKER_OPEN_DELAY);
     await this.setTolerance(daysTolerance);
     const chosenDate = await this.pickRandomAvailableDate();
     return chosenDate;

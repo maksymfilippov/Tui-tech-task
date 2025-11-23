@@ -1,0 +1,102 @@
+{
+  "firstName": [
+    {
+      "value": "A",
+      "expectedError": "Gebruik tussen de 2 en 32 letters",
+      "description": "Too short (1 character)"
+    },
+    {
+      "value": "John123",
+      "expectedError": "Geen cijfers of speciale tekens",
+      "description": "With numbers"
+    },
+    {
+      "value": "@#$",
+      "expectedError": "Geen cijfers of speciale tekens",
+      "description": "Special characters only"
+    }
+  ],
+  "lastName": [
+    {
+      "value": "S",
+      "expectedError": "Gebruik tussen de 2 en 32 letters",
+      "description": "Too short (1 character)"
+    },
+    {
+      "value": "Smith123",
+      "expectedError": "Geen cijfers of speciale tekens",
+      "description": "With numbers"
+    },
+    {
+      "value": "@#$",
+      "expectedError": "Geen cijfers of speciale tekens",
+      "description": "Special characters only"
+    }
+  ],
+  "email": [
+    {
+      "value": "invalidemail",
+      "expectedError": "Vul een geldig e-mailadres in",
+      "description": "Email without @"
+    },
+    {
+      "value": "test@",
+      "expectedError": "Vul een geldig e-mailadres in",
+      "description": "Email without domain"
+    },
+    {
+      "value": "@domain.com",
+      "expectedError": "Vul een geldig e-mailadres in",
+      "description": "Email without local part"
+    },
+    {
+      "value": "test@domain",
+      "expectedError": "Vul een geldig e-mailadres in",
+      "description": "Email without TLD"
+    },
+    {
+      "value": "test..test@domain.com",
+      "expectedError": "Vul een geldig e-mailadres in",
+      "description": "Email with consecutive dots"
+    }
+  ],
+  "phone": [
+    {
+      "value": "123",
+      "expectedError": "Vul het juiste telefoonnummer in",
+      "description": "Too short phone number"
+    },
+    {
+      "value": "abcdefghij",
+      "expectedError": "Vul het juiste telefoonnummer in",
+      "description": "Phone with letters"
+    },
+    {
+      "value": "!@#$%^&*()",
+      "expectedError": "Vul het juiste telefoonnummer in",
+      "description": "Phone with special characters"
+    },
+    {
+      "value": "+31",
+      "expectedError": "Vul het juiste telefoonnummer in",
+      "description": "Phone with only country code"
+    }
+  ],
+  "dateOfBirth": [
+    {
+      "value": "32-01-2000",
+      "expectedError": "Voer de geboortedatum als volgt in: DD/MM/JJJJ",
+      "description": "Invalid day (32)"
+    },
+    {
+      "value": "01-13-2000",
+      "expectedError": "Voer de geboortedatum als volgt in: DD/MM/JJJJ",
+      "description": "Invalid month (13)"
+    },
+    {
+      "value": "aa-bb-cccc",
+      "expectedError": "Voer de geboortedatum als volgt in: DD/MM/JJJJ",
+      "description": "Invalid format with letters"
+    }
+  ]
+}

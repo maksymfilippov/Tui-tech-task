@@ -3,4 +3,3 @@ export * from './Component';
 export * from './BasePage';
 export * from './WithSteps';
 export * from './objectToLocator';
-export * from './NetworkCounter';

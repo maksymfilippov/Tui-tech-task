@@ -1,11 +1,11 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { Component } from '@/pages/core';
 import { pickRandom } from '@/pages/utils/random';
+import { SELECTORS } from '@/internal/config/constants';
 
 const selectors = {
   root: '.UI__choiceSearchPanel',
-  departureInput:
-    '.UI__choiceSearchPanel input[name="Departure Airport"], input.SelectAirports__pointer',
+  departureInput: SELECTORS.DEPARTURE_INPUT,
   airportsContainer: '.SelectAirports__droplistContainer',
   airportCheckboxes: '.SelectAirports__droplistContainer [role="checkbox"]',
 } as const;
