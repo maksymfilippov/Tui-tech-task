@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { Fragment } from '@/pages/core';
+import { Fragment, LocatorOrWithOptions } from '@/pages/core';
 import {
   TIMEOUTS,
   COOKIE_SELECTORS,
@@ -7,7 +7,7 @@ import {
   OVERLAY_IDS,
 } from '@/internal/config/constants';
 
-export class BasePage<T> extends Fragment<T> {
+export class BasePage<T extends Record<string, LocatorOrWithOptions>> extends Fragment<T> {
   constructor(locators: T, page: Page) {
     super(locators, page);
   }

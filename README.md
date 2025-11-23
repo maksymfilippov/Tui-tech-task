@@ -143,6 +143,7 @@ Fragment (pages/core/Fragment.ts)
 ### Fragment (`pages/core/Fragment.ts`)
 
 Base class for all page objects and components:
+
 - Typed locator model (object with typed locators)
 - Converts string locators → Playwright Locator
 - Wraps all async methods in `test.step` (via `WithSteps`)
@@ -151,6 +152,7 @@ Base class for all page objects and components:
 ### Component (`pages/core/Component.ts`)
 
 Extends `Fragment` for reusable UI widgets:
+
 - Has `root: Locator` for scoped locators
 - Provides UI-level APIs: `click()`, `fill()`, `waitVisible()`, `getText()`, `isVisible()`
 - Used for reusable UI components (airport picker, date selector, rooms & guests)
@@ -158,6 +160,7 @@ Extends `Fragment` for reusable UI widgets:
 ### BasePage (`pages/core/BasePage.ts`)
 
 Extends `Fragment` for page-level behavior:
+
 - Navigation (`open()`, `preparePage()`)
 - Handles cookies, modals, overlays, newsletter popups
 - Each page composes multiple components into a real booking flow

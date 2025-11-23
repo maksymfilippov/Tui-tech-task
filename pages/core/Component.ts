@@ -1,7 +1,9 @@
 import { Page, Locator } from '@playwright/test';
-import { Fragment } from './Fragment';
+import { Fragment, LocatorOrWithOptions } from './Fragment';
 
-export class Component<T extends { root: string }> extends Fragment<T> {
+export class Component<
+  T extends Record<string, LocatorOrWithOptions> & { root: string },
+> extends Fragment<T> {
   protected root: Locator;
 
   constructor(locators: T, page: Page) {
