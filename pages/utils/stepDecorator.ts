@@ -2,7 +2,7 @@ import { TestType } from '@playwright/test';
 
 export const decorateMethodsWithSteps = <T extends object>(
   pageInstance: T,
-  test: TestType<any, any>
+  test: TestType<object, object>
 ): void => {
   const pageName = pageInstance.constructor.name;
 
@@ -14,19 +14,23 @@ export const decorateMethodsWithSteps = <T extends object>(
 
   const methods = Array.from(new Set([...parentProperties, ...properties]));
 
-  const methodNames = methods.filter(
-    method =>
-      (pageInstance as any)[method] &&
-      typeof (pageInstance as any)[method] === 'function' &&
-      (pageInstance as any)[method].constructor.name === 'AsyncFunction' &&
+  const methodNames = methods.filter(method => {
+    const prop = (pageInstance as Record<string, unknown>)[method];
+    return (
+      prop &&
+      typeof prop === 'function' &&
+      prop.constructor.name === 'AsyncFunction' &&
       method !== 'constructor'
-  );
+    );
+  });
 
   for (const methodName of methodNames) {
-    const initialMethod = (pageInstance as any)[methodName];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const instance = pageInstance as any;
+    const originalMethod = instance[methodName];
 
-    (pageInstance as any)[methodName] = async function (...args: any[]) {
-      return test.step(`${pageName}.${methodName}`, () => initialMethod.apply(pageInstance, args));
+    instance[methodName] = async function (...args: unknown[]) {
+      return test.step(`${pageName}.${methodName}`, () => originalMethod.apply(pageInstance, args));
     };
   }
 };

@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import { Component } from '@/pages/core';
 import { getRandomInt } from '@/pages/utils/random';
 import { TIMEOUTS } from '@/internal/config/constants';
@@ -12,11 +12,6 @@ const selectors = {
   childAgeSelector: '.ChildrenAge__childAgeSelector select',
   saveButton: 'button.DropModal__apply',
 } as const;
-
-interface GuestConfiguration {
-  adults?: number;
-  childrenAges?: number[];
-}
 
 export class TuiRoomsAndGuests extends Component<typeof selectors> {
   constructor(page: Page) {

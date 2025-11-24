@@ -42,11 +42,12 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
       }
 
       await this.page.waitForTimeout(TIMEOUTS.HOTEL_SELECTION_DELAY);
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       if (
-        String(err).includes('Target page') ||
-        String(err).includes('has been closed') ||
-        String(err).includes('Page closed')
+        errorMessage.includes('Target page') ||
+        errorMessage.includes('has been closed') ||
+        errorMessage.includes('Page closed')
       ) {
         throw new Error(
           'Hotel details page was closed or a popup was used. Ensure the hotel link opens a page Playwright can attach to. Original: ' +
@@ -89,7 +90,9 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
           });
         });
         return;
-      } catch (err) {}
+      } catch {
+        // Ignore errors during fallback attempt
+      }
     }
 
     throw new Error(
