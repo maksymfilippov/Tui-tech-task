@@ -19,12 +19,12 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
 
   async pageLoaded(): Promise<this> {
     await this.page.waitForURL(new RegExp(`.*${this.pagePrefix}.*`), {
-      timeout: TIMEOUTS.PAGE_NAVIGATION_TIMEOUT,
+      timeout: TIMEOUTS.PAGE_LOAD,
       waitUntil: 'domcontentloaded',
     });
 
     const heading = this.page.locator('h1').filter({ hasText: 'Persoonsgegevens' });
-    await expect(heading).toBeVisible({ timeout: TIMEOUTS.PAGE_HEADING_TIMEOUT });
+    await expect(heading).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
 
     return this;
   }
@@ -36,17 +36,14 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
     await button.click().catch(async () => {
       await button.click({ force: true });
     });
-
-    await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
   }
 
   async validateRequiredFieldsOnSubmit(): Promise<void> {
     const submitButton = this.page.locator(
       'button[role="button"][aria-label="button"]:has-text("Verder naar betalen")'
     );
-    await expect(submitButton).toBeVisible({ timeout: 5_000 });
+    await expect(submitButton).toBeVisible({ timeout: 3_000 });
     await submitButton.click();
-    await this.page.waitForTimeout(TIMEOUTS.MODAL_VISIBILITY_TIMEOUT);
     const errors = await this.page
       .locator('.inputs__errorMessage:visible, .inputs__error:visible')
       .all();
@@ -55,7 +52,7 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
       throw new Error('Expected validation errors for empty required fields, but none were found');
     }
 
-    console.log(`✅ Found ${errors.length} validation error(s) for required fields`);
+    console.log(`Found ${errors.length} validation error(s) for required fields`);
   }
 
   async validateField(
@@ -103,7 +100,6 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
       .locator('h1')
       .click()
       .catch(() => {});
-    await this.page.waitForTimeout(TIMEOUTS.FIELD_VALIDATION_DELAY);
 
     let fieldSelector: string = '';
     switch (fieldName) {
@@ -141,7 +137,7 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
         .first();
     }
 
-    await expect(errorLocator).toBeVisible({ timeout: 5_000 });
+    await expect(errorLocator).toBeVisible({ timeout: 3_000 });
 
     const actualError = await errorLocator.innerText();
     expect(actualError.trim()).toContain(expectedError);
@@ -224,7 +220,7 @@ export class TuiPassengerDetailsPage extends BasePage<typeof selectors> {
         await pageHeadingLocator.click().catch(() => {});
 
         const errorLocator = this.getErrorMessageLocator(passengerKey, fieldName);
-        await expect(errorLocator).toBeVisible({ timeout: 8_000 });
+        await expect(errorLocator).toBeVisible({ timeout: 3_000 });
 
         if (expectedErrorText) {
           const actualErrorText = await errorLocator.innerText();

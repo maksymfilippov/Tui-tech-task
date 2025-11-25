@@ -1,11 +1,6 @@
-import { Page } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 import { Fragment, LocatorOrWithOptions } from '@/pages/core';
-import {
-  TIMEOUTS,
-  COOKIE_SELECTORS,
-  COOKIE_ACCEPT_PATTERN,
-  OVERLAY_IDS,
-} from '@/internal/config/constants';
+import { TIMEOUTS } from '@/internal/config/constants';
 
 export class BasePage<T extends Record<string, LocatorOrWithOptions>> extends Fragment<T> {
   constructor(locators: T, page: Page) {
@@ -13,89 +8,40 @@ export class BasePage<T extends Record<string, LocatorOrWithOptions>> extends Fr
   }
 
   async open(url: string) {
-    await this.page.goto(url);
+    await this.page.goto(url, { timeout: TIMEOUTS.NAVIGATION });
     await this.page.waitForLoadState('domcontentloaded');
   }
 
   async acceptCookiesIfPresent() {
-    for (const sel of COOKIE_SELECTORS) {
-      const banner = this.page.locator(sel).first();
-      if (!(await banner.isVisible().catch(() => false))) continue;
-
-      const acceptButton = banner.getByRole('button', {
-        name: COOKIE_ACCEPT_PATTERN,
-      });
-      if (await acceptButton.isVisible().catch(() => false)) {
-        await acceptButton.click({ force: true }).catch(() => {});
-        await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
-        continue;
-      }
-      const allButtons = banner.locator('button');
-      const btnCount = await allButtons.count();
-      for (let i = 0; i < btnCount; i++) {
-        const btn = allButtons.nth(i);
-        if (await btn.isVisible().catch(() => false)) {
-          await btn.click({ force: true }).catch(() => {});
-          await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
-        }
-      }
-      const clickable = banner
-        .locator('div[role="button"], span[role="button"], a[role="button"]')
-        .first();
-      if (await clickable.isVisible().catch(() => false)) {
-        await clickable.click({ force: true }).catch(() => {});
-        await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
-        continue;
-      }
-      try {
-        await banner.click({ force: true, timeout: TIMEOUTS.MODAL_VISIBILITY_TIMEOUT });
-        await this.page.waitForTimeout(TIMEOUTS.COOKIE_BANNER_DELAY);
-      } catch {}
+    const cookiePopUp = this.page.locator('[id="cmBannerDescription"]');
+    if (await cookiePopUp.isVisible({ timeout: 10_000 }).catch(() => false)) {
+      const acceptBtn = cookiePopUp.getByRole('button', { name: /accepteer cookies/i });
+      await acceptBtn.click({ force: true, timeout: 8000 });
+      await this.page.waitForTimeout(500);
+      await cookiePopUp.waitFor({ state: 'hidden', timeout: 5000 });
     }
   }
 
-  async dismissShortlistModalIfPresent(): Promise<void> {
-    const modal = this.page.getByRole('dialog', { name: /create a shortlist/i });
+  async clickAndWaitFor(
+    clickTarget: Locator,
+    waitTarget: Locator | (() => Promise<unknown>),
+    options: { timeout?: number } = {}
+  ): Promise<void> {
+    const timeout = options.timeout ?? 45000;
 
-    if ((await modal.count()) === 0) return;
-    if (!(await modal.isVisible())) return;
+    await expect(clickTarget).toBeVisible({ timeout });
+    await expect(clickTarget).toBeEnabled({ timeout });
 
-    const cancelBtn = modal.getByRole('button', { name: /cancel/i });
-    if (await cancelBtn.count()) {
-      await cancelBtn.click();
-      return;
+    if (typeof waitTarget === 'function') {
+      await Promise.all([
+        (async () => {
+          const result = await waitTarget();
+          return result as unknown;
+        })(),
+        clickTarget.click(),
+      ]);
+    } else {
+      await Promise.all([waitTarget.waitFor({ timeout }), clickTarget.click()]);
     }
-
-    const closeBtn = modal.locator('button:has(svg)').first();
-    if (await closeBtn.count()) {
-      await closeBtn.click();
-    }
-  }
-
-  async hideOverlays() {
-    await this.page.evaluate(overlayIds => {
-      for (const id of overlayIds) {
-        const el = document.getElementById(id);
-        if (el && el instanceof HTMLElement) {
-          el.style.display = 'none';
-          el.style.visibility = 'hidden';
-          el.style.pointerEvents = 'none';
-        }
-      }
-
-      const possibleBackdrops = document.querySelectorAll(
-        '[class*="modal"], [class*="overlay"], [id*="tealium"], [id*="cookie"]'
-      );
-      possibleBackdrops.forEach(el => {
-        if (el instanceof HTMLElement) {
-          el.style.pointerEvents = 'none';
-        }
-      });
-    }, Array.from(OVERLAY_IDS));
-  }
-
-  async preparePage() {
-    await this.acceptCookiesIfPresent();
-    await this.hideOverlays();
   }
 }

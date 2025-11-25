@@ -1,23 +1,25 @@
 import { Page, expect } from '@playwright/test';
-import { BasePage } from '@/pages/core';
+import { BasePage } from '@/pages/core/BasePage';
 import { TuiPassengerDetailsPage } from './TuiPassengerDetailsPage';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export class TuiSummaryBookingPage extends BasePage<{}> {
-  private readonly pagePrefix = '/h/nl/book/flow/summary';
+const selectors = {};
+
+export class TuiSummaryBookingPage extends BasePage<typeof selectors> {
+  pagePrefix = '/nl/book/flow/summary';
 
   constructor(page: Page) {
-    super({}, page);
+    super(selectors, page);
   }
 
   async pageLoaded(): Promise<this> {
-    await this.page.waitForURL(/.*\/h\/nl\/book\/flow\/summary.*/, {
-      timeout: 50000,
+    await this.page.waitForURL(/\/(h\/)?nl\/book\/flow\/summary/, {
+      timeout: 40000,
       waitUntil: 'domcontentloaded',
     });
 
-    const header = this.page.locator('h1').filter({ hasText: /Vakantie samenstellen/i });
-    await expect(header).toBeVisible({ timeout: 30000 });
+    await expect(this.page.locator('h1').filter({ hasText: 'Vakantie samenstellen' })).toBeVisible({
+      timeout: 40000,
+    });
 
     return this;
   }
@@ -28,11 +30,13 @@ export class TuiSummaryBookingPage extends BasePage<{}> {
 
   async proceedBooking(): Promise<TuiPassengerDetailsPage> {
     const btn = this.page.locator('.ProgressbarNavigation__summaryButton button');
-    await expect(btn).toBeVisible({ timeout: 30000 });
-    await btn.click();
 
-    const passengerPage = new TuiPassengerDetailsPage(this.page);
-    await passengerPage.pageLoaded();
-    return passengerPage;
+    const nextPageHeader = this.page.locator('h1.pageHeading', {
+      hasText: /Persoonsgegevens/i,
+    });
+
+    await this.clickAndWaitFor(btn, nextPageHeader);
+
+    return new TuiPassengerDetailsPage(this.page).pageLoaded();
   }
 }

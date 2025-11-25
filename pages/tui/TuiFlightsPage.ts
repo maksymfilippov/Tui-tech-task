@@ -1,11 +1,13 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import { BasePage } from '@/pages/core';
 import { TuiSummaryBookingPage } from './TuiSummaryBookingPage';
+import { TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   outboundFlight: '[data-testid="outbound-flight"]:first-child',
   inboundFlight: '[data-testid="inbound-flight"]:first-child',
-  continueButton: 'button:has-text("Continue")',
+  continueButton:
+    '[data-testid="continue-button"], .FlightResultsFooter button, .ProgressbarNavigation__flightButton button',
 } as const;
 
 export class TuiFlightsPage extends BasePage<typeof selectors> {
@@ -13,13 +15,18 @@ export class TuiFlightsPage extends BasePage<typeof selectors> {
     super(selectors, page);
   }
 
-  async selectAvailableFlights() {
-    await this.locators.outboundFlight.click();
-    await this.locators.inboundFlight.click();
+  async pageLoaded(): Promise<this> {
+    await expect(this.locators.outboundFlight.first()).toBeVisible({
+      timeout: TIMEOUTS.PAGE_LOAD,
+    });
+    return this;
   }
 
-  // Continue to passengers page with fallback to summary page if needed
-  // Handles cases where flight selection redirects to summary instead of passenger details
+  async selectAvailableFlights(): Promise<void> {
+    await this.locators.outboundFlight.first().click();
+    await this.locators.inboundFlight.first().click();
+  }
+
   async continueToPassengersOrSummary(): Promise<void> {
     try {
       await this.continueToPassengers();
@@ -30,46 +37,63 @@ export class TuiFlightsPage extends BasePage<typeof selectors> {
         const alive = pages.reverse().find(p => !p.isClosed());
         currentPage = alive || this.page;
       } catch {}
+
       const summary = new TuiSummaryBookingPage(currentPage);
       await summary.pageLoaded();
       await summary.proceedBooking();
     }
   }
 
-  async continueToPassengers() {
-    const selectors = [
-      '.ProgressbarNavigation__summaryButton button',
-      '.buttons__button.buttons__primary.buttons__fill',
-      'button:has-text("Boek Nu")',
-      'button:has-text("Continue")',
-      'button:has-text("Doorgaan")',
-      'button:has-text("Verder")',
-      'button:has-text("Next")',
-    ];
-    let clicked = false;
-    for (const sel of selectors) {
-      const btn = this.page.locator(sel).first();
-      if ((await btn.count()) && (await btn.isVisible().catch(() => false))) {
-        await btn.click().catch(async () => {
-          await btn.click({ force: true }).catch(() => {});
-        });
-        clicked = true;
-        break;
+  async continueToPassengers(): Promise<void> {
+    const continueButton = this.page
+      .locator(
+        'button:has-text("Doorgaan"), button:has-text("Verder"), [data-testid="continue-button"], .FlightResultsFooter button'
+      )
+      .first();
+
+    await expect(continueButton).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
+    await continueButton.scrollIntoViewIfNeeded();
+
+    const ctx = this.page.context();
+
+    const popupPromise = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null);
+    const navPromise = this.page
+      .waitForNavigation({
+        waitUntil: 'domcontentloaded',
+        timeout: TIMEOUTS.PAGE_LOAD,
+      })
+      .catch(() => null);
+
+    await continueButton.click();
+
+    const popup = await popupPromise;
+    await navPromise;
+
+    if (popup) {
+      try {
+        await popup.waitForLoadState('domcontentloaded').catch(() => {});
+        const popupUrl = popup.url();
+
+        if (!this.page.isClosed()) {
+          await this.page.goto(popupUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: TIMEOUTS.PAGE_LOAD,
+          });
+        }
+      } finally {
+        await popup.close().catch(() => {});
       }
     }
-    if (!clicked) {
-      const fallback = this.page
-        .locator('button')
-        .filter({ has: this.page.locator('.buttons__primary') })
-        .first();
-      if ((await fallback.count()) && (await fallback.isVisible().catch(() => false))) {
-        await fallback.click().catch(async () => {
-          await fallback.click({ force: true }).catch(() => {});
-        });
-        clicked = true;
-      }
+
+    await this.page.waitForURL(
+      /\/(h\/)?nl\/book\/(flow\/summary|passengerdetails|passenger-details|passengers)/,
+      { timeout: TIMEOUTS.PAGE_LOAD }
+    );
+
+    if (this.page.url().includes('/flow/summary')) {
+      const summary = new TuiSummaryBookingPage(this.page);
+      await summary.pageLoaded();
+      await summary.proceedBooking();
     }
-    if (!clicked) throw new Error('No continue/next/Boek Nu button found on flights page');
-    await this.page.waitForURL(/\/h\/nl\/book\/flow\/summary/, { timeout: 30_000 });
   }
 }

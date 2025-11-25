@@ -9,8 +9,6 @@ export class TuiSearchResultsPage extends BasePage<{}> {
   }
 
   async waitForResults(): Promise<void> {
-    await this.acceptCookiesIfPresent().catch(() => {});
-
     const resultsList = this.page.locator('[data-test-id="search-results-list"]');
     const hotelItems = this.page.locator('section[data-test-result-item-uniq-id]');
 
@@ -19,13 +17,10 @@ export class TuiSearchResultsPage extends BasePage<{}> {
     } catch {
       await expect(hotelItems.first()).toBeVisible({ timeout: 10_000 });
     }
-
-    console.log('[TUI] Results loaded');
   }
 
   async openFirstHotel(): Promise<string> {
     await this.waitForResults();
-    await this.preparePage();
 
     const resultsList = this.page.locator('[data-test-id="search-results-list"]');
     await expect(resultsList).toBeVisible({ timeout: 10_000 });
@@ -33,16 +28,15 @@ export class TuiSearchResultsPage extends BasePage<{}> {
     const resultItem = this.page.locator('section[data-test-result-item-uniq-id]').first();
     const hotelLink = resultItem.locator('.ResultListItemV2__details h5 a');
 
-    await this.acceptCookiesIfPresent().catch(() => {});
-    await this.hideOverlays().catch(() => {});
-
     await hotelLink.scrollIntoViewIfNeeded().catch(() => {});
 
     const hotelName = await hotelLink.innerText().catch(() => 'Unknown');
     console.log(`Attempting to click hotel link: "${hotelName}"`);
 
-    await hotelLink.click();
-    await this.page.waitForLoadState('domcontentloaded');
+    await Promise.all([
+      this.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 40000 }),
+      hotelLink.click(),
+    ]);
 
     const hotelPage = new TuiHotelDetailsPage(this.page);
     await hotelPage.waitUntilLoaded();
@@ -53,13 +47,9 @@ export class TuiSearchResultsPage extends BasePage<{}> {
 
   async pickSearchResult(resultIndex: number = 0): Promise<string> {
     await this.waitForResults();
-    await this.preparePage();
 
     const resultItem = this.page.locator('section[data-test-result-item-uniq-id]').nth(resultIndex);
     const hotelLink = resultItem.locator('.ResultListItemV2__details h5 a');
-
-    await this.acceptCookiesIfPresent().catch(() => {});
-    await this.hideOverlays().catch(() => {});
 
     await hotelLink.scrollIntoViewIfNeeded().catch(() => {});
     await hotelLink.click();
@@ -68,6 +58,8 @@ export class TuiSearchResultsPage extends BasePage<{}> {
 
     const hotelPage = new TuiHotelDetailsPage(this.page);
     await hotelPage.waitUntilLoaded();
-    return await hotelPage.getHotelName().catch(() => '');
+    const name = await hotelPage.getHotelName().catch(() => '');
+    console.log(`Opened hotel: ${name}`);
+    return name;
   }
 }

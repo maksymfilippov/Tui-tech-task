@@ -12,6 +12,71 @@ import {
   DATE_OF_BIRTH_VALIDATION,
 } from '../data/ValidationTestCaseFactory';
 
+const MAX_BOOKING_FLOW_RETRIES = 3;
+
+const VALIDATION_FIELDS = [
+  { name: 'firstName', tests: FIRST_NAME_VALIDATION },
+  { name: 'lastName', tests: LAST_NAME_VALIDATION },
+  { name: 'email', tests: EMAIL_VALIDATION },
+  { name: 'phone', tests: PHONE_VALIDATION },
+  { name: 'dateOfBirth', tests: DATE_OF_BIRTH_VALIDATION },
+] as const;
+
+async function validatePassengerFields(passengerPage: TuiPassengerDetailsPage) {
+  await passengerPage.pageLoaded();
+
+  for (const field of VALIDATION_FIELDS) {
+    for (const testCase of field.tests) {
+      console.log(`Testing ${field.name}: ${testCase.description}`);
+      await passengerPage.validateField(field.name, testCase.value, testCase.expectedError);
+    }
+  }
+
+  console.log('All field validations passed!');
+}
+
+async function executeBookingFlow(
+  attempt: number,
+  homePage: TuiHomePage,
+  resultsPage: TuiSearchResultsPage,
+  page: import('@playwright/test').Page
+) {
+  await test.step(`Attempt ${attempt}: Select departure airport`, async () => {
+    await homePage.selectRandomDepartureAirportNL();
+  });
+
+  await test.step(`Attempt ${attempt}: Select destination and date`, async () => {
+    await homePage.selectDestinationAndDateWithRetry();
+  });
+
+  await test.step(`Attempt ${attempt}: Set rooms & guests`, async () => {
+    await homePage.roomsAndGuests.setTwoAdultsWithRandomChild();
+  });
+
+  await test.step(`Attempt ${attempt}: Search holidays`, async () => {
+    await homePage.search();
+  });
+
+  await test.step(`Attempt ${attempt}: Open first hotel`, async () => {
+    await resultsPage.openFirstHotel();
+  });
+
+  await test.step(`Attempt ${attempt}: Continue to booking summary`, async () => {
+    const hotelPage = new TuiHotelDetailsPage(page);
+    await hotelPage.proceedBooking();
+  });
+
+  await test.step(`Attempt ${attempt}: Select flights`, async () => {
+    const flightsPage = new TuiFlightsPage(page);
+    await flightsPage.continueToPassengersOrSummary();
+  });
+
+  await test.step(`Attempt ${attempt}: Validate passenger fields`, async () => {
+    const passengerPage = new TuiPassengerDetailsPage(page);
+    await validatePassengerFields(passengerPage);
+  });
+}
+
 test.describe('TUI beach holiday booking', () => {
   test('[E2E] Booking flow with validation on passenger details', async ({ page }) => {
     const homePage = new TuiHomePage(page);
@@ -19,69 +84,33 @@ test.describe('TUI beach holiday booking', () => {
 
     await test.step('Open homepage & prepare', async () => {
       await homePage.open();
-      await homePage.ensureReady();
+      await homePage.acceptCookiesIfPresent();
     });
 
-    await test.step('Select departure airport', async () => {
-      await homePage.selectRandomDepartureAirportNL();
-    });
+    let bookingFlowSuccess = false;
+    let attempt = 0;
 
-    await test.step('Select destination and date', async () => {
-      await homePage.selectDestinationAndDateWithRetry();
-    });
+    // eslint-disable-next-line playwright/no-conditional-in-test
+    while (!bookingFlowSuccess && attempt < MAX_BOOKING_FLOW_RETRIES) {
+      attempt++;
+      console.log(`\nBooking flow attempt ${attempt}/${MAX_BOOKING_FLOW_RETRIES}`);
 
-    await test.step('Set rooms & guests (2 adults, 1 child)', async () => {
-      await homePage.roomsAndGuests.setTwoAdultsWithRandomChild();
-    });
+      try {
+        await executeBookingFlow(attempt, homePage, resultsPage, page);
+        bookingFlowSuccess = true;
+        console.log(`Booking flow succeeded on attempt ${attempt}`);
+      } catch (error) {
+        console.log(`Booking flow failed on attempt ${attempt}: ${error}`);
 
-    await test.step('Search holidays', async () => {
-      await homePage.search();
-    });
-
-    await test.step('Open first hotel from results', async () => {
-      await resultsPage.openFirstHotel();
-    });
-
-    await test.step('Continue from hotel page to flights', async () => {
-      const hotelPage = new TuiHotelDetailsPage(page);
-      await hotelPage.continueToFlights();
-    });
-
-    await test.step('Select available flights and continue', async () => {
-      const flightsPage = new TuiFlightsPage(page);
-      await flightsPage.continueToPassengersOrSummary();
-    });
-
-    await test.step('Validate passenger form fields', async () => {
-      const passengerPage = new TuiPassengerDetailsPage(page);
-      await passengerPage.pageLoaded();
-
-      for (const testCase of FIRST_NAME_VALIDATION) {
-        console.log(`Testing firstName: ${testCase.description}`);
-        await passengerPage.validateField('firstName', testCase.value, testCase.expectedError);
+        // eslint-disable-next-line playwright/no-conditional-in-test
+        if (attempt < MAX_BOOKING_FLOW_RETRIES) {
+          console.log('Restarting with new search criteria...');
+          await homePage.open();
+        } else {
+          console.log(`All ${MAX_BOOKING_FLOW_RETRIES} attempts failed`);
+          throw error;
+        }
       }
-
-      for (const testCase of LAST_NAME_VALIDATION) {
-        console.log(`Testing lastName: ${testCase.description}`);
-        await passengerPage.validateField('lastName', testCase.value, testCase.expectedError);
-      }
-
-      for (const testCase of EMAIL_VALIDATION) {
-        console.log(`Testing email: ${testCase.description}`);
-        await passengerPage.validateField('email', testCase.value, testCase.expectedError);
-      }
-
-      for (const testCase of PHONE_VALIDATION) {
-        console.log(`Testing phone: ${testCase.description}`);
-        await passengerPage.validateField('phone', testCase.value, testCase.expectedError);
-      }
-
-      for (const testCase of DATE_OF_BIRTH_VALIDATION) {
-        console.log(`Testing dateOfBirth: ${testCase.description}`);
-        await passengerPage.validateField('dateOfBirth', testCase.value, testCase.expectedError);
-      }
-
-      console.log('All field validations passed!');
-    });
+    }
   });
 });

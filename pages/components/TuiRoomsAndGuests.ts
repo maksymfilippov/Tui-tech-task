@@ -1,7 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { Component } from '@/pages/core';
 import { getRandomInt } from '@/pages/utils/random';
-import { TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   root: '.dropModalScope_roomandguest',
@@ -41,9 +40,8 @@ export class TuiRoomsAndGuests extends Component<typeof selectors> {
     await expect(childrenSelector).toBeVisible({ timeout: 5_000 });
     await childrenSelector.selectOption({ label: childrenAges.length.toString() });
 
-    await this.page.waitForTimeout(TIMEOUTS.CHILDREN_SELECTOR_DELAY);
-
     const childAgeSelectors = await this.page.locator(selectors.childAgeSelector).all();
+    await expect(childAgeSelectors[0]).toBeVisible({ timeout: 2000 });
 
     for (let i = 0; i < childrenAges.length; i++) {
       await childAgeSelectors[i].selectOption({ label: childrenAges[i].toString() });

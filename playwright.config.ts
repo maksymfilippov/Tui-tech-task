@@ -11,7 +11,7 @@ export default defineConfig({
   },
 
   forbidOnly: isCI(),
-  retries: isCI() ? 2 : 0,
+  retries: 0, // Using custom retry logic in tests
   workers: isCI() ? '50%' : undefined,
 
   reporter: [['html', { open: 'never' }], ['list']],

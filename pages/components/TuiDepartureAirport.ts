@@ -60,10 +60,9 @@ export class TuiDepartureAirport extends Component<typeof selectors> {
 
     for (const airport of allAirports) {
       const input = airport.locator('input');
-      const isDisabled = await input.isDisabled().catch(() => false);
       const text = (await airport.innerText()).trim();
 
-      if (!isDisabled && text) {
+      if (text && (await input.isEnabled())) {
         result.push({ locator: airport, name: text });
       }
     }

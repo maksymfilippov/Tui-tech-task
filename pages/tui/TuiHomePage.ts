@@ -6,7 +6,7 @@ import {
   TuiDepartureDate,
   TuiRoomsAndGuests,
 } from '@/pages/components';
-import { TIMEOUTS, SELECTORS } from '@/internal/config/constants';
+import { SELECTORS, TIMEOUTS } from '@/internal/config/constants';
 
 const selectors = {
   departureInput: SELECTORS.DEPARTURE_INPUT,
@@ -31,60 +31,21 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   }
 
   async open(): Promise<void> {
-    await this.page.goto('/h/nl', { waitUntil: 'domcontentloaded' });
-
+    await this.page.goto('/h/nl', {
+      timeout: TIMEOUTS.NAVIGATION,
+      waitUntil: 'domcontentloaded',
+    });
     await this.acceptCookiesIfPresent();
-    await this.hideOverlays();
-
-    console.log('[TUI] Homepage opened & prepared');
-  }
-
-  async acceptCookiesIfPresent(): Promise<void> {
-    const buttonSelectors = [
-      '#cmNotifyBanner button',
-      '#__tealiumGDPRecModal button',
-      'button:has-text("Akkoord")',
-      'button:has-text("Accepteer")',
-      'button:has-text("Accepteren")',
-      'button:has-text("Alles accepteren")',
-      'button:has-text("Accept")',
-    ];
-
-    for (const selector of buttonSelectors) {
-      try {
-        const button = this.page.locator(selector).first();
-        if (await button.isVisible({ timeout: 500 })) {
-          await button.click({ force: true, timeout: 3_000 });
-          await this.page.waitForTimeout(TIMEOUTS.COOKIE_CLICK_DELAY);
-          console.log('Cookies banner accepted');
-
-          await this.page
-            .evaluate(() => {
-              const banner = document.querySelector('#cmNotifyBanner, #__tealiumGDPRecModal');
-              if (banner) banner.remove();
-            })
-            .catch(() => {});
-          return;
-        }
-      } catch {
-        continue;
-      }
-    }
-  }
-
-  async ensureReady(): Promise<void> {
-    await this.acceptCookiesIfPresent();
+    console.log('[TUI] Homepage opened & cookies handled');
   }
 
   async selectRandomDepartureAirportNL(): Promise<string> {
-    await this.ensureReady();
     const name = await this.departureAirport.selectDepartureAirport();
     console.log('\n[TUI] Departure airport selected\n' + name);
     return name;
   }
 
   async selectRandomDestinationAirport(): Promise<string> {
-    await this.ensureReady();
     const { country, city } = await this.destinationAirport.setDestination();
     const full = `${country} — ${city}`;
     console.log('\n[TUI] Destination selected\n' + full);
@@ -92,14 +53,11 @@ export class TuiHomePage extends BasePage<typeof selectors> {
   }
 
   async selectAnyAvailableDepartureDate(): Promise<string> {
-    await this.ensureReady();
     const date = await this.departureDate.setDepartureDate('3');
     console.log('\n[TUI] Departure date selected\n' + date);
     return date;
   }
 
-  // Select destination and date with automatic retry on failure
-  // If dates are unavailable for selected destination, reloads page and tries different destination
   async selectDestinationAndDateWithRetry(maxRetries: number = 3): Promise<void> {
     let retryCount = 0;
 
@@ -116,9 +74,8 @@ export class TuiHomePage extends BasePage<typeof selectors> {
         if (retryCount < maxRetries) {
           console.log('Retrying with different destination...');
           await this.page.reload();
-          await this.ensureReady();
+          await this.acceptCookiesIfPresent();
           await this.selectRandomDepartureAirportNL();
-          // Continue to next iteration to select new destination and date
         } else {
           throw error;
         }

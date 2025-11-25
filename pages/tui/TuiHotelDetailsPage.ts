@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BasePage } from '@/pages/core';
-import { TIMEOUTS } from '@/internal/config/constants';
+import { TuiSummaryBookingPage } from './TuiSummaryBookingPage';
 
 const selectors = {
   hotelTitle: 'h1',
@@ -17,8 +17,6 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
 
   async waitUntilLoaded(): Promise<void> {
     try {
-      await this.acceptCookiesIfPresent().catch(() => {});
-      await this.hideOverlays().catch(() => {});
       await this.page.waitForLoadState('domcontentloaded');
 
       const candidates = [
@@ -28,20 +26,12 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
         selectors.hotelTitle,
       ];
 
-      await this.page.waitForFunction(
-        (sels: string[]) => sels.some(s => !!document.querySelector(s)),
-        candidates,
-        { timeout: 25_000 }
-      );
-
       for (const sel of candidates) {
         try {
           await this.page.waitForSelector(sel, { timeout: 5_000, state: 'visible' });
           return;
         } catch {}
       }
-
-      await this.page.waitForTimeout(TIMEOUTS.HOTEL_SELECTION_DELAY);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
@@ -65,39 +55,41 @@ export class TuiHotelDetailsPage extends BasePage<typeof selectors> {
     return (await title.innerText()).trim();
   }
 
-  async continueToFlights(): Promise<void> {
+  async proceedBooking(): Promise<TuiSummaryBookingPage> {
     await this.waitUntilLoaded();
 
-    const candidateSelectors = [
-      this.$.continueButton,
-      'button:has-text("Continue")',
-      'button:has-text("Ga verder")',
-      '.ProgressbarNavigation__summaryButton button',
-    ];
+    const btn = this.page.locator('.ProgressbarNavigation__summaryButton');
+    await expect(btn).toBeVisible({ timeout: 30000 });
 
-    for (const sel of candidateSelectors) {
-      try {
-        const locator = this.page.locator(sel).first();
-        await expect(locator).toBeVisible({ timeout: 5_000 });
-        await locator.click().catch(async () => {
-          await locator.click({ force: true }).catch(async () => {
-            await this.page
-              .evaluate((s: string) => {
-                const el = document.querySelector(s) as HTMLElement | null;
-                if (el) el.click();
-              }, sel)
-              .catch(() => {});
-          });
-        });
-        return;
-      } catch {
-        // Ignore errors during fallback attempt
+    const ctx = this.page.context();
+
+    const popupPromise = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null);
+    const navPromise = this.page
+      .waitForNavigation({
+        waitUntil: 'domcontentloaded',
+        timeout: 40000,
+      })
+      .catch(() => null);
+
+    await btn.click();
+
+    const popup = await popupPromise;
+    const nav = await navPromise;
+
+    if (popup) {
+      await popup.waitForLoadState('domcontentloaded').catch(() => {});
+      const popupUrl = popup.url();
+
+      if (!this.page.isClosed()) {
+        await this.page.goto(popupUrl, { waitUntil: 'domcontentloaded', timeout: 40000 });
       }
-    }
 
-    throw new Error(
-      'Could not find or click Continue button on hotel details page. Tried selectors: ' +
-        candidateSelectors.join(', ')
-    );
+      await popup.close().catch(() => {});
+    } else if (!nav) {
+      await this.page.waitForURL(/\/(h\/)?nl\/book\/flow\/summary/, { timeout: 40000 });
+    }
+    const summaryPage = new TuiSummaryBookingPage(this.page);
+    await summaryPage.pageLoaded();
+    return summaryPage;
   }
 }
