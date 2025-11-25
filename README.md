@@ -8,9 +8,8 @@ Modern Playwright E2E testing framework for TUI booking flow with TypeScript and
 - **Automatic retry logic** - Handles TUI.nl booking flow instability
 - **Comprehensive validation** - 18 test cases for passenger form fields
 - **Type-safe** - Full TypeScript coverage
-- **Centralized configuration** - All timeouts, selectors, patterns in one place
-- **Locale-aware** - Dutch/English text matching with regex patterns
-- **Fallback strategies** - Multiple navigation paths handled automatically
+- **Centralized configuration** - All selectors, patterns in one place
+- **Locale-aware** - Dutch text matching with regex patterns
 
 ## Quick Start
 
@@ -81,7 +80,7 @@ pages/
   core/
     Fragment.ts            # Base class: typed locators + autosteps
     Component.ts           # UI components with root & helpers
-    BasePage.ts            # Navigation + cookies/modals handling
+  BasePage.ts            # Navigation + cookies/modals handling
     WithSteps.ts           # Auto test.step() decorator
     objectToLocator.ts     # Converts locator object → Locator API
 
@@ -161,9 +160,9 @@ Extends `Fragment` for reusable UI widgets:
 
 Extends `Fragment` for page-level behavior:
 
-- Navigation (`open()`, `preparePage()`)
-- Handles cookies, modals, overlays, newsletter popups
-- Each page composes multiple components into a real booking flow
+- Navigation (`open()`)
+- Handles cookies and modals
+- Each page компoses multiple components into a real booking flow
 
 ### Test Data Management
 
@@ -213,8 +212,7 @@ export class MyPage extends BasePage<typeof locators> {
   }
 
   async open() {
-    await this.page.goto('/my-page');
-    await this.preparePage();
+  await this.page.goto('/my-page');
   }
 }
 ```
